@@ -275,20 +275,6 @@ export default function InternDashboard() {
                     </div>
                 </motion.div>
 
-                {/* This Month Summary */}
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
-                    style={{ maxWidth: '28rem', margin: '0 auto 1.25rem auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
-                    <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '1rem', padding: '0.875rem 1rem' }}>
-                        <p style={{ fontSize: '0.5625rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.25rem' }}>This Month</p>
-                        <p style={{ fontSize: '1.375rem', fontWeight: 900, color: 'white', margin: '0 0 0.125rem', lineHeight: 1 }}>{formatHours(thisMonthHours)}</p>
-                        <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', margin: 0 }}>{thisMonthName}</p>
-                    </div>
-                    <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '1rem', padding: '0.875rem 1rem' }}>
-                        <p style={{ fontSize: '0.5625rem', fontWeight: 800, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.25rem' }}>Days Present</p>
-                        <p style={{ fontSize: '1.375rem', fontWeight: 900, color: 'white', margin: '0 0 0.125rem', lineHeight: 1 }}>{thisMonthDays}</p>
-                        <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', margin: 0 }}>this month</p>
-                    </div>
-                </motion.div>
 
                 {/* Tab Toggle */}
                 <div style={{ maxWidth: '28rem', margin: '0 auto 1.25rem auto', display: 'flex', gap: '0.5rem' }}>
@@ -349,7 +335,21 @@ export default function InternDashboard() {
                                     </div>
                                 </div>
                             </div>
-                            
+
+                            {/* This Month Summary */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem', marginBottom: '1.25rem' }}>
+                                <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '1rem', padding: '0.875rem 1rem' }}>
+                                    <p style={{ fontSize: '0.5625rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.25rem' }}>This Month</p>
+                                    <p style={{ fontSize: '1.375rem', fontWeight: 900, color: 'white', margin: '0 0 0.125rem', lineHeight: 1 }}>{formatHours(thisMonthHours)}</p>
+                                    <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', margin: 0 }}>{thisMonthName}</p>
+                                </div>
+                                <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '1rem', padding: '0.875rem 1rem' }}>
+                                    <p style={{ fontSize: '0.5625rem', fontWeight: 800, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 0.25rem' }}>Days Present</p>
+                                    <p style={{ fontSize: '1.375rem', fontWeight: 900, color: 'white', margin: '0 0 0.125rem', lineHeight: 1 }}>{thisMonthDays}</p>
+                                    <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', margin: 0 }}>this month</p>
+                                </div>
+                            </div>
+
                             {/* Leave Requests Log */}
                             {leaveRequests.length > 0 && (
                                 <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '1.5rem', overflow: 'hidden' }}>
