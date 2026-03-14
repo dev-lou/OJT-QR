@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase-browser'
 import CustomMonthPicker from '@/components/CustomMonthPicker'
+import CustomDatePicker from '@/components/CustomDatePicker'
 import { calculateTotalOjtHours, formatHours, formatManilaTime, formatManilaDate } from '@/utils/time'
 
 export default function AdminDashboard() {
@@ -444,29 +445,17 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {filterType === 'day' && (
-                                    <input
-                                        type="date"
-                                        value={filterDate}
-                                        onChange={(e) => {
-                                            setFilterDate(e.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        style={{ 
-                                            padding: '0.375rem 0.875rem', 
-                                            borderRadius: '0.75rem', 
-                                            border: `1.5px solid ${filterDate ? 'rgba(201,168,76,0.4)' : 'var(--border)'}`, 
-                                            background: 'rgba(0,0,0,0.3)', 
-                                            color: filterDate ? 'white' : 'rgba(255,255,255,0.4)', 
-                                            fontSize: '0.8125rem', 
-                                            fontWeight: 600,
-                                            fontFamily: 'inherit',
-                                            outline: 'none',
-                                            colorScheme: 'dark',
-                                            height: '34px',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s'
-                                        }}
-                                    />
+                                    <div style={{ width: '160px', height: '34px' }}>
+                                        <CustomDatePicker
+                                            selectedDate={filterDate}
+                                            onChange={(val) => {
+                                                setFilterDate(val);
+                                                setCurrentPage(1);
+                                            }}
+                                            size="small"
+                                            align="right"
+                                        />
+                                    </div>
                                 )}
 
                                 {filterType === 'month' && (

@@ -3,7 +3,6 @@ import './globals.css'
 export const metadata = {
   title: 'OJT Attendance System — ISUFST Dingle Campus',
   description: 'On-the-Job Training attendance tracker with QR scanning for intern hour tracking | CICT Department',
-  themeColor: '#0f172a',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

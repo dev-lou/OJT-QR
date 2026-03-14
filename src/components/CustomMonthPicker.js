@@ -1,19 +1,31 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 
-export default function CustomMonthPicker({ 
-    selectedMonth, 
-    onChange, 
+export default function CustomMonthPicker({
+    selectedMonth,
+    onChange,
     placeholder = 'Select month...',
     align = 'left',
     size = 'default',
-    width = '100%'
+    width = '100%',
+    dropDirection = 'top' // 'top' or 'bottom'
 }) {
     const [open, setOpen] = useState(false)
     const pickerRef = useRef(null)
     const [pickerYear, setPickerYear] = useState(() => {
         return selectedMonth ? parseInt(selectedMonth.split('-')[0]) : new Date().getFullYear()
     })
+
+    const [isMobile, setIsMobile] = useState(false)
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth <= 768)
+        }
+        checkMobile()
+        window.addEventListener('resize', checkMobile)
+        return () => window.removeEventListener('resize', checkMobile)
+    }, [])
 
     useEffect(() => {
         const handler = (e) => {
@@ -72,19 +84,37 @@ export default function CustomMonthPicker({
             </button>
 
             {open && (
-                <div 
-                    className={`month-picker-popup align-${align}`}
-                    style={{ 
-                        position: 'absolute', 
-                        top: 'calc(100% + 0.375rem)', 
-                        background: 'linear-gradient(160deg, rgba(14,22,38,0.99), rgba(24,34,52,0.99))', 
-                        border: '1px solid rgba(255,255,255,0.1)', 
-                        borderRadius: '1.25rem', 
-                        padding: '1rem', 
-                        zIndex: 100, 
-                        boxShadow: '0 20px 50px rgba(0,0,0,0.7)', 
-                        backdropFilter: 'blur(20px)', 
-                        minWidth: '240px' 
+                <>
+                    {/* Mobile Backdrop */}
+                    {isMobile && (
+                        <div
+                            style={{
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                background: 'rgba(0,0,0,0.5)',
+                                zIndex: 9998,
+                                backdropFilter: 'blur(2px)'
+                            }}
+                            onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+                        />
+                    )}
+                    <div
+                        className={`month-picker-popup align-${align}`}
+                    style={{
+                        position: 'absolute',
+                        [isMobile ? 'bottom' : 'top']: 'calc(100% + 0.375rem)',
+                        background: 'linear-gradient(160deg, rgba(14,22,38,0.99), rgba(24,34,52,0.99))',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '1.25rem',
+                        padding: '1rem',
+                        zIndex: 100,
+                        boxShadow: '0 20px 50px rgba(0,0,0,0.7)',
+                        backdropFilter: 'blur(20px)',
+                        minWidth: '240px',
+                        boxSizing: 'border-box'
                     }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
                         <button onClick={() => setPickerYear(y => y - 1)}
@@ -154,6 +184,7 @@ export default function CustomMonthPicker({
                         </button>
                     </div>
                 </div>
+                </>
             )}
         </div>
     )

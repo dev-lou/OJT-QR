@@ -488,9 +488,18 @@ button, a, [role="button"] {
 }
 
 @media (max-width: 768px) {
-    .month-picker-popup.align-right {
-        right: auto;
-        left: 0;
+    .month-picker-popup.align-right,
+    .month-picker-popup.align-left {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        bottom: auto !important;
+        right: auto !important;
+        transform: translate(-50%, -50%) !important;
+        z-index: 9999 !important;
+        width: max-content !important;
+        max-width: 95vw !important;
+        box-sizing: border-box !important;
     }
 }
 

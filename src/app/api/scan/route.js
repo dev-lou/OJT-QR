@@ -67,10 +67,13 @@ export async function POST(request) {
               idx: Number.isFinite(Number(entry?.idx)) ? Number(entry.idx) : index,
               uuid: String(entry?.uuid || '').trim(),
               mode: entry?.mode === 'time-out' ? 'time-out' : 'time-in',
+              sessionType: entry?.sessionType || sessionType,
+              overtime: entry?.overtime !== undefined ? entry?.overtime : overtime,
+              explicitTime: entry?.explicitTime || explicitTime,
               queued_at: entry?.queued_at || null,
           }))
         : uuid
-          ? [{ idx: 0, uuid: String(uuid).trim(), mode: mode === 'time-out' ? 'time-out' : 'time-in', queued_at: null }]
+          ? [{ idx: 0, uuid: String(uuid).trim(), mode: mode === 'time-out' ? 'time-out' : 'time-in', sessionType, overtime, explicitTime, queued_at: null }]
           : null
 
     if (!Array.isArray(normalizedEntries)) {
@@ -84,9 +87,9 @@ export async function POST(request) {
             const trimmed = entry.uuid
             if (!trimmed) continue
 
-            const referenceDayKey = getManilaDayKeyFromIso(entry.queued_at || explicitTime) || getTodayManilaDayKey()
-            const currentSession = sessionType // trust the client explicitly ('morning' | 'afternoon')
-            const actualTimeIso = explicitTime ? new Date(explicitTime).toISOString() : new Date().toISOString()
+            const referenceDayKey = getManilaDayKeyFromIso(entry.queued_at || entry.explicitTime || explicitTime) || getTodayManilaDayKey()
+            const currentSession = entry.sessionType // trust the client explicitly ('morning' | 'afternoon')
+            const actualTimeIso = entry.queued_at ? new Date(entry.queued_at).toISOString() : (entry.explicitTime ? new Date(entry.explicitTime).toISOString() : new Date().toISOString())
 
             // Look up intern
             const { data: intern, error: internErr } = await supabaseAdmin
@@ -152,7 +155,7 @@ export async function POST(request) {
 
                 // Validation: Prevent wrong session choice based on actual time
                 // (Only applies to normal QR scans. Manual time override skips this check).
-                if (!explicitTime) {
+                if (!entry.explicitTime) {
                     const actualHour = Number(new Date(actualTimeIso).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
                     if (currentSession === 'morning' && actualHour >= 12) {
                         results.push({ idx: entry.idx, uuid: trimmed, status: 'invalid_time', message: 'Cannot scan for Morning session during Afternoon hours', session: currentSession, name: intern.full_name })
@@ -197,7 +200,7 @@ export async function POST(request) {
                 // ── CHECK-OUT ──
 
                 // Validation: Prevent wrong session choice based on actual time
-                if (!explicitTime) {
+                if (!entry.explicitTime) {
                     const actualHour = Number(new Date(actualTimeIso).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
                     if (currentSession === 'morning' && actualHour >= 12) {
                         results.push({ idx: entry.idx, uuid: trimmed, status: 'invalid_time', message: 'Cannot scan out for Morning session during Afternoon hours', session: currentSession, name: intern.full_name })
@@ -230,7 +233,7 @@ export async function POST(request) {
                 }
 
                 // Close the session, applying overtime cap if needed
-                const finalTimeOut = overtime ? actualTimeIso : getCappedCheckoutTime(currentSession, actualTimeIso)
+                const finalTimeOut = entry.overtime ? actualTimeIso : getCappedCheckoutTime(currentSession, actualTimeIso)
 
                 const { error: updateErr } = await supabaseAdmin
                     .from('attendance')

@@ -24,6 +24,11 @@ export default function AdminScanner() {
     const debouncerRef = useRef(createScanDebouncer())
     const [menuOpen, setMenuOpen] = useState(false)
 
+    // Offline queue states
+    const [isOnline, setIsOnline] = useState(true)
+    const [offlineQueue, setOfflineQueue] = useState([])
+    const [isSyncing, setIsSyncing] = useState(false)
+
     // Audio beep (ported from AdminScanner.jsx)
     const audioCtxRef = useRef(null)
     const hasUserGestureRef = useRef(false)
@@ -70,6 +75,59 @@ export default function AdminScanner() {
         setIsAdmin(true)
     }, [router])
 
+    // Offline Queue Logic
+    useEffect(() => {
+        setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true)
+        
+        const storedQueue = localStorage.getItem('offline_scan_queue')
+        if (storedQueue) {
+            try { setOfflineQueue(JSON.parse(storedQueue)) } catch(e){}
+        }
+
+        const handleOnline = () => setIsOnline(true)
+        const handleOffline = () => setIsOnline(false)
+
+        window.addEventListener('online', handleOnline)
+        window.addEventListener('offline', handleOffline)
+
+        return () => {
+            window.removeEventListener('online', handleOnline)
+            window.removeEventListener('offline', handleOffline)
+        }
+    }, [])
+
+    const syncOfflineQueue = useCallback(async () => {
+        if (!isOnline || isSyncing || offlineQueue.length === 0) return
+        
+        setIsSyncing(true)
+        try {
+            const response = await fetch('/api/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entries: offlineQueue }),
+            })
+
+            if (response.ok) {
+                // Wait for a bit just in case we need to process big batch
+                await response.json()
+                setOfflineQueue([])
+                localStorage.setItem('offline_scan_queue', '[]')
+                Swal.fire({
+                    title: 'Synced!',
+                    text: `${offlineQueue.length} offline scans synced successfully.`,
+                    icon: 'success',
+                    timer: 3000,
+                    showConfirmButton: false,
+                    background: '#1f2937', color: '#fff'
+                })
+            }
+        } catch (err) {
+            console.error('Sync failed:', err)
+        } finally {
+            setIsSyncing(false)
+        }
+    }, [isOnline, isSyncing, offlineQueue])
+
     // Audio unlock
     useEffect(() => {
         const unlockAudio = () => {
@@ -114,6 +172,29 @@ export default function AdminScanner() {
                 const now = new Date()
                 const dateKey = new Date(now).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
                 explicitTime = new Date(`${dateKey}T${manualTime}:00+08:00`).toISOString()
+            }
+            
+            const payload = { 
+                uuid, 
+                mode, 
+                sessionType, 
+                overtime, 
+                explicitTime,
+                queued_at: explicitTime || new Date().toISOString()
+            }
+
+            if (!navigator.onLine) {
+                // Queue locally
+                const newQ = [...(JSON.parse(localStorage.getItem('offline_scan_queue') || '[]')), payload]
+                setOfflineQueue(newQ)
+                localStorage.setItem('offline_scan_queue', JSON.stringify(newQ))
+                setScanCount(c => c + 1)
+                playSuccessSound()
+                const sessionLabel = sessionType === 'afternoon' ? 'Afternoon' : 'Morning'
+                const timeLabel = isManualTime ? ' (Manual Time)' : ''
+                await Swal.fire(successScanAlert('Offline Mode', `Queued: ${sessionLabel} ${mode === 'time-in' ? 'Check-in' : 'Check-out'}${timeLabel}`))
+                processingRef.current = false
+                return
             }
 
             const response = await fetch('/api/scan', {
@@ -181,8 +262,34 @@ export default function AdminScanner() {
             }
         } catch (err) {
             console.error('Scan failed:', err)
-            playErrorSound()
-            await Swal.fire(errorSaveAlert('Network error'))
+            if (err.name === 'TypeError' || !navigator.onLine) {
+                // Network error, queue locally
+                let explicitTime = null
+                if (isManualTime && manualTime) {
+                    const now = new Date()
+                    const dateKey = new Date(now).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+                    explicitTime = new Date(`${dateKey}T${manualTime}:00+08:00`).toISOString()
+                }
+                const payload = { 
+                    uuid, 
+                    mode, 
+                    sessionType, 
+                    overtime, 
+                    explicitTime,
+                    queued_at: explicitTime || new Date().toISOString()
+                }
+                const newQ = [...(JSON.parse(localStorage.getItem('offline_scan_queue') || '[]')), payload]
+                setOfflineQueue(newQ)
+                localStorage.setItem('offline_scan_queue', JSON.stringify(newQ))
+                setScanCount(c => c + 1)
+                playSuccessSound()
+                const sessionLabel = sessionType === 'afternoon' ? 'Afternoon' : 'Morning'
+                const timeLabel = isManualTime ? ' (Manual Time)' : ''
+                await Swal.fire(successScanAlert('Offline Mode', `Queued (Network Error): ${sessionLabel} ${mode === 'time-in' ? 'Check-in' : 'Check-out'}${timeLabel}`))
+            } else {
+                playErrorSound()
+                await Swal.fire(errorSaveAlert('Network error'))
+            }
         }
 
         processingRef.current = false
@@ -251,7 +358,14 @@ export default function AdminScanner() {
                         </div>
                         <div>
                             <h2 style={{ fontSize: '0.875rem', fontWeight: 800, color: 'white', margin: 0 }}>QR Scanner</h2>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.625rem', fontWeight: 600, margin: 0 }}>ADMIN PANEL</p>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.625rem', fontWeight: 600, margin: 0 }}>
+                                ADMIN PANEL
+                                {(!isOnline || offlineQueue.length > 0) && (
+                                    <span style={{ color: isOnline ? '#f59e0b' : '#f87171', marginLeft: '0.25rem', fontWeight: 800 }}>
+                                        — {isOnline ? 'SYNCING ' : 'OFFLINE '}({offlineQueue.length})
+                                    </span>
+                                )}
+                            </p>
                         </div>
                     </div>
                     <div style={{ position: 'relative' }}>
@@ -304,6 +418,50 @@ export default function AdminScanner() {
                         )}
                     </div>
                 </motion.div>
+
+                {/* Optional Manual Sync Button */}
+                {offlineQueue.length > 0 && (
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: '1.25rem' }}>
+                        <button
+                            onClick={syncOfflineQueue}
+                            disabled={!isOnline || isSyncing}
+                            style={{
+                                width: '100%',
+                                padding: '0.875rem',
+                                borderRadius: '1rem',
+                                background: isOnline ? (isSyncing ? 'var(--warning)' : 'var(--gold)') : 'rgba(255,255,255,0.1)',
+                                color: isOnline ? '#1e293b' : 'var(--text-muted)',
+                                border: 'none',
+                                fontWeight: 800,
+                                fontSize: '0.875rem',
+                                cursor: isOnline && !isSyncing ? 'pointer' : 'not-allowed',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.5rem',
+                                boxShadow: isOnline && !isSyncing ? '0 4px 12px rgba(201,168,76,0.3)' : 'none',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {!isOnline ? (
+                                <>
+                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3" /></svg>
+                                    Waiting for Connection
+                                </>
+                            ) : isSyncing ? (
+                                <>
+                                    <svg className="animate-spin" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    Syncing...
+                                </>
+                            ) : (
+                                <>
+                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                    Sync {offlineQueue.length} Offline {offlineQueue.length === 1 ? 'Scan' : 'Scans'} Now
+                                </>
+                            )}
+                        </button>
+                    </motion.div>
+                )}
 
                 {/* Session Type & Mode Buttons (2x2 Grid) */}
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}

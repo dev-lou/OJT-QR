@@ -311,8 +311,8 @@ export default function AdminReports() {
                 ghostDiv.innerHTML = `
                     <div style="border-bottom: 3px double #7B1C1C; padding-bottom: 8px; margin-bottom: 8px; text-align: center;">
                         <div style="font-size: 11px; color: #666; letter-spacing: 0.1em; text-transform: uppercase;">Republic of the Philippines</div>
-                        <div style="font-size: 18px; font-weight: 900; color: #C9A84C; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1.2;">Iloilo State University of Fisheries</div>
-                        <div style="font-size: 18px; font-weight: 900; color: #C9A84C; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1.2;">Science and Technology (ISUFST)</div>
+                        <div style="font-size: 18px; font-weight: 900; color: #000080; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1.2;">Iloilo State University of Fisheries</div>
+                        <div style="font-size: 18px; font-weight: 900; color: #000080; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1.2;">Science and Technology</div>
                         <div style="font-size: 13px; font-weight: 700; color: #7B1C1C; letter-spacing: 0.05em; margin-top: 2px;">College of Information and Communication Technology (CICT)</div>
                         <div style="font-size: 11px; color: #666; margin-top: 2px;">Dingle Campus | Website: isufst.edu.ph | (033) 337-1544 / (+63) 963-463-8274</div>
                         <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #eee; font-size: 14.5px; font-weight: 800; color: #222; letter-spacing: 0.12em; text-transform: uppercase;">― Daily Time Record ―</div>
@@ -341,18 +341,22 @@ export default function AdminReports() {
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; text-align: center;">
                         <thead>
                             <tr style="background: #7B1C1C; color: white;">
-                                <th rowspan="2" style="border: 1px solid #7B1C1C; padding: 4px; font-size: 11px;">Day</th>
-                                <th rowspan="2" style="border: 1px solid #7B1C1C; padding: 4px; font-size: 11px; width: 60px;">Date</th>
-                                <th colspan="2" style="border: 1px solid #7B1C1C; padding: 4px; font-size: 11px; color: #fde68a;">MORNING</th>
-                                <th colspan="2" style="border: 1px solid #7B1C1C; padding: 4px; font-size: 11px; color: #93c5fd;">AFTERNOON</th>
-                                <th rowspan="2" style="border: 1px solid #7B1C1C; padding: 4px; font-size: 11px;">Hours</th>
-                                <th rowspan="2" style="border: 1px solid #7B1C1C; padding: 4px; font-size: 11px;">Status</th>
+                                <th style="border: 1px solid #7B1C1C; border-bottom: none; padding: 4px; font-size: 11px; background: #7B1C1C; color: white;">Day</th>
+                                <th style="border: 1px solid #7B1C1C; border-bottom: none; padding: 4px; font-size: 11px; width: 60px; background: #7B1C1C; color: white;">Date</th>
+                                <th colspan="2" style="border: 1px solid #7B1C1C; padding: 4px; font-size: 11px; color: #fde68a; background: #7B1C1C;">MORNING</th>
+                                <th colspan="2" style="border: 1px solid #7B1C1C; padding: 4px; font-size: 11px; color: #93c5fd; background: #7B1C1C;">AFTERNOON</th>
+                                <th style="border: 1px solid #7B1C1C; border-bottom: none; padding: 4px; font-size: 11px; background: #7B1C1C; color: white;">Hours</th>
+                                <th style="border: 1px solid #7B1C1C; border-bottom: none; padding: 4px; font-size: 11px; background: #7B1C1C; color: white;">Status</th>
                             </tr>
                             <tr style="background: #8B2C2C;">
-                                <th style="border: 1px solid #7B1C1C; padding: 4px; font-size: 10px; color: #fde68a;">In</th>
-                                <th style="border: 1px solid #7B1C1C; padding: 4px; font-size: 10px; color: #fde68a;">Out</th>
-                                <th style="border: 1px solid #7B1C1C; padding: 4px; font-size: 10px; color: #93c5fd;">In</th>
-                                <th style="border: 1px solid #7B1C1C; padding: 4px; font-size: 10px; color: #93c5fd;">Out</th>
+                                <th style="border: 1px solid #7B1C1C; border-top: none; padding: 0; background: #7B1C1C;"></th>
+                                <th style="border: 1px solid #7B1C1C; border-top: none; padding: 0; background: #7B1C1C;"></th>
+                                <th style="border: 1px solid #7B1C1C; padding: 4px; font-size: 10px; color: #fde68a; background: #8B2C2C;">In</th>
+                                <th style="border: 1px solid #7B1C1C; padding: 4px; font-size: 10px; color: #fde68a; background: #8B2C2C;">Out</th>
+                                <th style="border: 1px solid #7B1C1C; padding: 4px; font-size: 10px; color: #93c5fd; background: #8B2C2C;">In</th>
+                                <th style="border: 1px solid #7B1C1C; padding: 4px; font-size: 10px; color: #93c5fd; background: #8B2C2C;">Out</th>
+                                <th style="border: 1px solid #7B1C1C; border-top: none; padding: 0; background: #7B1C1C;"></th>
+                                <th style="border: 1px solid #7B1C1C; border-top: none; padding: 0; background: #7B1C1C;"></th>
                             </tr>
                         </thead>
                         <tbody>${tableRowsHtml}</tbody>
@@ -426,8 +430,26 @@ export default function AdminReports() {
     const totalMonthHours = dtrRows.reduce((sum, r) => sum + r.hours, 0)
     const daysPresent = dtrRows.filter(r => r.timeIn).length
 
-    const handlePrint = () => {
-        window.print()
+    const handlePrint = async () => {
+        const element = document.getElementById('print-area')
+        if (!element) return
+        
+        try {
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false })
+            const imgData = canvas.toDataURL('image/jpeg', 0.95)
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+            
+            const pdfWidth = pdf.internal.pageSize.getWidth()
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+            
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight)
+            
+            const safeName = selectedIntern?.full_name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'employee'
+            pdf.save(`${safeName}_dtr_${selectedMonth}.pdf`)
+        } catch (error) {
+            console.error('Error generating PDF:', error)
+            alert('Failed to generate PDF.')
+        }
     }
 
     const monthLabel = selectedMonth
@@ -865,7 +887,7 @@ export default function AdminReports() {
                                 </button>
                             </div>
                             {/* Export Buttons */}
-                            <div style={{ display: 'flex', alignItems: 'flex-end', flexShrink: 0, gap: '0.5rem', marginLeft: 'auto' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', width: '100%', marginTop: '0.5rem' }}>
                                 <button onClick={handleExportCSV} disabled={isExporting}
                                     style={{ padding: '0.75rem 1.25rem', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', transition: 'background 0.2s', whiteSpace: 'nowrap' }}
                                     onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}>
@@ -895,8 +917,8 @@ export default function AdminReports() {
                                 <div className="dtr-gov-header">
                                     <div style={{ textAlign: 'center' }}>
                                         <div style={{ fontSize: '0.625rem', color: '#666', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 2 }}>Republic of the Philippines</div>
-                                        <div style={{ fontSize: '1rem', fontWeight: 900, color: '#C9A84C', letterSpacing: '0.03em', textTransform: 'uppercase', lineHeight: 1.2 }}>Iloilo State University of Fisheries</div>
-                                        <div style={{ fontSize: '1rem', fontWeight: 900, color: '#C9A84C', letterSpacing: '0.03em', textTransform: 'uppercase', lineHeight: 1.2 }}>Science and Technology (ISUFST)</div>
+                                        <div style={{ fontSize: '1rem', fontWeight: 900, color: '#000080', letterSpacing: '0.03em', textTransform: 'uppercase', lineHeight: 1.2 }}>Iloilo State University of Fisheries</div>
+                                        <div style={{ fontSize: '1rem', fontWeight: 900, color: '#000080', letterSpacing: '0.03em', textTransform: 'uppercase', lineHeight: 1.2 }}>Science and Technology</div>
                                         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#7B1C1C', letterSpacing: '0.05em', marginTop: 2 }}>College of Information and Communication Technology (CICT)</div>
                                         <div style={{ fontSize: '0.625rem', color: '#666', marginTop: 2 }}>Dingle Campus &nbsp;|&nbsp; Website: isufst.edu.ph &nbsp;|&nbsp; (033) 337-1544 / (+63) 963-463-8274</div>
                                         <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #eee', fontSize: '0.8125rem', fontWeight: 800, color: '#222', letterSpacing: '0.12em', textTransform: 'uppercase' }}>― Daily Time Record ―</div>
@@ -930,18 +952,22 @@ export default function AdminReports() {
                                         <table className="dtr-table">
                                             <thead>
                                                 <tr>
-                                                    <th rowSpan={2} style={{ width: '30px' }}>Day</th>
-                                                    <th rowSpan={2} style={{ width: '56px' }}>Date</th>
-                                                    <th colSpan={2} style={{ color: '#fde68a' }}>MORNING</th>
-                                                    <th colSpan={2} style={{ color: '#93c5fd' }}>AFTERNOON</th>
-                                                    <th rowSpan={2} style={{ width: '56px' }}>Hours</th>
-                                                    <th rowSpan={2} style={{ width: '52px' }}>Status</th>
+                                                    <th style={{ width: '30px', background: '#7B1C1C', color: 'white', borderBottom: 'none' }}>Day</th>
+                                                    <th style={{ width: '56px', background: '#7B1C1C', color: 'white', borderBottom: 'none' }}>Date</th>
+                                                    <th colSpan={2} style={{ color: '#fde68a', background: '#7B1C1C' }}>MORNING</th>
+                                                    <th colSpan={2} style={{ color: '#93c5fd', background: '#7B1C1C' }}>AFTERNOON</th>
+                                                    <th style={{ width: '56px', background: '#7B1C1C', color: 'white', borderBottom: 'none' }}>Hours</th>
+                                                    <th style={{ width: '52px', background: '#7B1C1C', color: 'white', borderBottom: 'none' }}>Status</th>
                                                 </tr>
                                                 <tr>
+                                                    <th style={{ background: '#7B1C1C', borderTop: 'none' }}></th>
+                                                    <th style={{ background: '#7B1C1C', borderTop: 'none' }}></th>
                                                     <th style={{ background: '#8B2C2C', color: '#fde68a', fontSize: '0.5625rem' }}>In</th>
                                                     <th style={{ background: '#8B2C2C', color: '#fde68a', fontSize: '0.5625rem' }}>Out</th>
                                                     <th style={{ background: '#8B2C2C', color: '#93c5fd', fontSize: '0.5625rem' }}>In</th>
                                                     <th style={{ background: '#8B2C2C', color: '#93c5fd', fontSize: '0.5625rem' }}>Out</th>
+                                                    <th style={{ background: '#7B1C1C', borderTop: 'none' }}></th>
+                                                    <th style={{ background: '#7B1C1C', borderTop: 'none' }}></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1023,10 +1049,12 @@ export default function AdminReports() {
                                     </div>
 
                                     {/* Print Button */}
-                                    <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }} className="no-print">
-                                        <button onClick={handlePrint} className="btn-primary" style={{ padding: '0.75rem 1.75rem', display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.9375rem' }}>
-                                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                            Print / Export PDF
+                                    <div data-html2canvas-ignore="true" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }} className="no-print">
+                                        <button onClick={handlePrint} disabled={loading} className="btn-primary" style={{ padding: '0.75rem 1.75rem', display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.9375rem', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
+                                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            {loading ? 'Downloading...' : 'Download / Export PDF'}
                                         </button>
                                     </div>
 

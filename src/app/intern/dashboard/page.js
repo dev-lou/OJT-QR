@@ -44,26 +44,43 @@ export default function InternDashboard() {
         if (!uuid || !supabase) return
         setLoading(true)
         try {
-            const [{ data: internData }, { data: attendanceData }] = await Promise.all([
-                supabase.from('interns').select('*').eq('uuid', uuid).single(),
-                supabase.from('attendance').select('*')
-                    .eq('intern_id', (await supabase.from('interns').select('id').eq('uuid', uuid).single()).data?.id)
-                    .order('time_in', { ascending: false }),
-            ])
+            // First fetch intern to get intern.id
+            const { data: internData, error: internError } = await supabase
+                .from('interns')
+                .select('*')
+                .eq('uuid', uuid)
+                .single()
             
+            if (internError) throw internError
+
             if (internData) {
                 setIntern(internData)
-                // Fetch leave requests using the intern's actual ID
-                const { data: leaveData } = await supabase
-                    .from('leave_requests')
-                    .select('*')
-                    .eq('intern_id', internData.id)
-                    .order('created_at', { ascending: false })
-                setLeaveRequests(leaveData || [])
+                
+                // Then fetch attendance and leave requests using intern.id in parallel
+                const [attendanceRes, leaveRes] = await Promise.all([
+                    supabase.from('attendance')
+                        .select('*')
+                        .eq('intern_id', internData.id)
+                        .order('time_in', { ascending: false }),
+                    supabase.from('leave_requests')
+                        .select('*')
+                        .eq('intern_id', internData.id)
+                        .order('created_at', { ascending: false })
+                ])
+                
+                if (attendanceRes.error) console.error('Attendance fetch error:', attendanceRes.error)
+                if (leaveRes.error) console.error('Leave fetch error:', leaveRes.error)
+
+                setAttendance(attendanceRes.data || [])
+                setLeaveRequests(leaveRes.data || [])
             }
-            setAttendance(attendanceData || [])
         } catch (err) {
-            console.error('Failed to load data:', err)
+            console.error('Failed to load data:', JSON.stringify(err, null, 2), err)
+            if (err.code === 'PGRST116') {
+                // Not found. Invalid UUID in local storage.
+                localStorage.removeItem('intern_uuid')
+                router.replace('/intern/login')
+            }
         } finally {
             setLoading(false)
         }
