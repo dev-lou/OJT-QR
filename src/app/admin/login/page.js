@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { supabase } from '@/lib/supabase-browser'
 
 export default function AdminLogin() {
     const router = useRouter()
@@ -17,20 +16,19 @@ export default function AdminLogin() {
         if (!email.trim() || !password) { setError('Please enter your email and password.'); return }
         setLoading(true); setError('')
         try {
-            if (!supabase) throw new Error('Database is not configured.')
+            const response = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim(), password })
+            })
 
-            const { data, error: dbError } = await supabase
-                .from('admins')
-                .select('id, email')
-                .eq('email', email.trim().toLowerCase())
-                .eq('password', password)
-                .single()
+            const data = await response.json()
 
-            if (dbError || !data) {
-                throw new Error('Invalid email or password.')
+            if (!response.ok) {
+                throw new Error(data.error || 'Invalid email or password.')
             }
 
-            const session = { id: data.id, email: data.email }
+            const session = { id: data.user.id, email: data.user.email }
             sessionStorage.setItem('admin_logged_in', 'true')
             localStorage.setItem('admin_session', JSON.stringify(session))
             router.push('/admin/dashboard')
