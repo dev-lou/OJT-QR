@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase-browser'
 import { calculateTotalOjtHours, formatHours } from '@/utils/time'
 import Swal from 'sweetalert2'
-import { confirmDeleteAlert } from '@/utils/swal-configs'
+import { confirmDeleteAlert, confirmUpdateAlert } from '@/utils/swal-configs'
 import ManageAttendanceModal from '@/components/ManageAttendanceModal'
 
 export default function AdminInterns() {
@@ -72,6 +72,9 @@ export default function AdminInterns() {
         if (!editingIntern || !supabase) return
         const hrs = parseInt(editHours)
         if (isNaN(hrs) || hrs < 1) return
+
+        const result = await Swal.fire(confirmUpdateAlert(editingIntern.full_name, 'required hours'))
+        if (!result.isConfirmed) return
         setSaving(true)
         try {
             await supabase.from('interns').update({ required_hours: hrs }).eq('id', editingIntern.id)

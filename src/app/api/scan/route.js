@@ -132,24 +132,6 @@ export async function POST(request) {
             const afternoonRecord = sessionData.find(r => r.session === 'afternoon') || null
             const currentRecord = currentSession === 'morning' ? morningRecord : afternoonRecord
 
-            // Also auto-close any truly stale open sessions from previous days
-            const { data: allOpen } = await supabaseAdmin
-                .from('attendance')
-                .select('id, time_in')
-                .eq('intern_id', intern.id)
-                .is('time_out', null)
-
-            const staleOpen = (allOpen || []).filter(
-                r => getManilaDayKeyFromIso(r.time_in) !== referenceDayKey
-            )
-            if (staleOpen.length > 0) {
-                await supabaseAdmin
-                    .from('attendance')
-                    .update({ time_out: getCappedCheckoutTime(getSessionFromIso(staleOpen[0].time_in), staleOpen[0].time_in) })
-                    .in('id', staleOpen.map(r => r.id))
-                    .then(() => {}).catch(() => {})
-            }
-
             if (entry.mode === 'time-in') {
                 // ── CHECK-IN ──
 

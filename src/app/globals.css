@@ -89,6 +89,12 @@ button, a, [role="button"] {
   color: rgba(255,255,255,0.25);
 }
 
+/* Make browser-native date/time icons visible in dark mode */
+::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
 /* ─── Button Styles ────────────────────────────────────────────────────────── */
 
 .btn-primary {

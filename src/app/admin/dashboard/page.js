@@ -5,7 +5,10 @@ import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase-browser'
 import CustomMonthPicker from '@/components/CustomMonthPicker'
 import CustomDatePicker from '@/components/CustomDatePicker'
+import ManageAttendanceModal from '@/components/ManageAttendanceModal'
 import { calculateTotalOjtHours, formatHours, formatManilaTime, formatManilaDate } from '@/utils/time'
+import { confirmDeleteAlert, confirmActionAlert } from '@/utils/swal-configs'
+import Swal from 'sweetalert2'
 
 export default function AdminDashboard() {
     const router = useRouter()
@@ -27,6 +30,8 @@ export default function AdminDashboard() {
         pendingLeaves: []
     })
     const [menuOpen, setMenuOpen] = useState(false)
+    const [isManageModalOpen, setIsManageModalOpen] = useState(false)
+    const [selectedInternForManage, setSelectedInternForManage] = useState(null)
 
     useEffect(() => {
         const storedStr = localStorage.getItem('admin_session')
@@ -41,6 +46,11 @@ export default function AdminDashboard() {
             router.replace('/admin/login')
         }
     }, [router])
+
+    const handleOpenManage = (internId, internName) => {
+        setSelectedInternForManage({ id: internId, full_name: internName })
+        setIsManageModalOpen(true)
+    }
 
     const fetchAnalytics = useCallback(async () => {
         if (!supabase) return
@@ -128,6 +138,17 @@ export default function AdminDashboard() {
     }
 
     const handleUpdateLeaveStatus = async (id, newStatus) => {
+        if (!supabase) return
+        
+        const actionLabel = newStatus === 'approved' ? 'Approve' : 'Reject'
+        const result = await Swal.fire(confirmActionAlert(
+            `${actionLabel} Leave Request?`,
+            `Are you sure you want to <span style="color: ${newStatus === 'approved' ? 'var(--success)' : 'var(--danger)'}; font-weight: 700;">${actionLabel}</span> this leave request?`,
+            `Yes, ${actionLabel}`,
+            newStatus === 'approved' ? 'question' : 'warning'
+        ))
+        if (!result.isConfirmed) return
+
         setActionLoading(true)
         try {
             // Optional: You could add a prompt here to collect rejection reasons or notes
@@ -501,6 +522,7 @@ export default function AdminDashboard() {
                                             <th>PM In</th>
                                             <th>PM Out</th>
                                             <th>Duration</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -525,7 +547,7 @@ export default function AdminDashboard() {
                                             if (filteredLogs.length === 0) {
                                                 return (
                                                     <tr>
-                                                        <td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                                                        <td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                                                             No logs found for the selected filter.
                                                         </td>
                                                     </tr>
@@ -553,6 +575,10 @@ export default function AdminDashboard() {
                                             const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
                                             const paginatedGroups = sortedGroups.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
+                                            const now = new Date()
+                                            const nowHr = Number(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
+                                            const todayKey = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+
                                             return (
                                                 <>
                                                 {paginatedGroups.map((group, i) => {
@@ -570,6 +596,10 @@ export default function AdminDashboard() {
                                                     return sum + (new Date(r.time_out) - new Date(r.time_in)) / 3600000
                                                 }, 0)
 
+                                                const isPastDay = group.dateKey < todayKey
+                                                const isStaleMorning = !morning?.time_out && morning?.time_in && (isPastDay || nowHr >= 13)
+                                                const isStaleAfternoon = !afternoon?.time_out && afternoon?.time_in && isPastDay
+
                                                 return (
                                                     <tr key={`${group.internName}_${group.dateKey}_${i}`}>
                                                         <td data-label="Intern Name">
@@ -582,18 +612,51 @@ export default function AdminDashboard() {
                                                             {morning?.time_in ? <span className="badge badge-success" style={{ fontSize: '0.625rem' }}>{formatManilaTime(morning.time_in)}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                                                         </td>
                                                         <td data-label="AM Out">
-                                                            {morning?.time_out ? <span className="badge badge-warning" style={{ fontSize: '0.625rem' }}>{formatManilaTime(morning.time_out)}</span> : morning?.time_in ? <span style={{ color: 'var(--success)', fontSize: '0.75rem', fontWeight: 800 }}>● Active</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                                                             {morning?.time_out ? (
+                                                                 morning.time_out === morning.time_in ? (
+                                                                    <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', background: 'rgba(239,68,68,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.375rem' }}>Did Not Time Out</span>
+                                                                 ) : (
+                                                                    <span className="badge badge-warning" style={{ fontSize: '0.625rem' }}>{formatManilaTime(morning.time_out)}</span>
+                                                                 )
+                                                             ) : isStaleMorning ? (
+                                                                 <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', background: 'rgba(239,68,68,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.375rem' }}>Did Not Time Out</span>
+                                                             ) : morning?.time_in ? (
+                                                                 <span style={{ color: 'var(--success)', fontSize: '0.75rem', fontWeight: 800 }}>● Active</span>
+                                                             ) : (
+                                                                 <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                                             )}
                                                         </td>
                                                         <td data-label="PM In">
                                                             {afternoon?.time_in ? <span style={{ fontSize: '0.625rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '0.375rem', background: 'rgba(96,165,250,0.12)', color: 'rgba(96,165,250,0.9)' }}>{formatManilaTime(afternoon.time_in)}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                                                         </td>
                                                         <td data-label="PM Out">
-                                                            {afternoon?.time_out ? <span style={{ fontSize: '0.625rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '0.375rem', background: 'rgba(96,165,250,0.08)', color: 'rgba(96,165,250,0.7)' }}>{formatManilaTime(afternoon.time_out)}</span> : afternoon?.time_in ? <span style={{ color: 'var(--success)', fontSize: '0.75rem', fontWeight: 800 }}>● Active</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                                                            {afternoon?.time_out ? (
+                                                                afternoon.time_out === afternoon.time_in ? (
+                                                                    <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', background: 'rgba(239,68,68,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.375rem' }}>Did Not Time Out</span>
+                                                                ) : (
+                                                                    <span style={{ fontSize: '0.625rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '0.375rem', background: 'rgba(96,165,250,0.08)', color: 'rgba(96,165,250,0.7)' }}>{formatManilaTime(afternoon.time_out)}</span>
+                                                                )
+                                                            ) : isStaleAfternoon ? (
+                                                                <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', background: 'rgba(239,68,68,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.375rem' }}>Did Not Time Out</span>
+                                                            ) : afternoon?.time_in ? (
+                                                                <span style={{ color: 'var(--success)', fontSize: '0.75rem', fontWeight: 800 }}>● Active</span>
+                                                            ) : (
+                                                                <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                                            )}
                                                         </td>
                                                         <td data-label="Duration">
                                                             <span style={{ fontWeight: 800, color: totalDayHours > 0 ? 'white' : 'var(--text-muted)' }}>
                                                                 {totalDayHours > 0 ? formatHours(totalDayHours) : '—'}
                                                             </span>
+                                                        </td>
+                                                        <td data-label="Actions">
+                                                            <button onClick={() => handleOpenManage(group.records[0].intern_id, group.internName)}
+                                                                style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', color: 'var(--gold)', padding: '0.35rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.6875rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                onMouseOver={e => e.currentTarget.style.background = 'rgba(201,168,76,0.2)'}
+                                                                onMouseOut={e => e.currentTarget.style.background = 'rgba(201,168,76,0.1)'}
+                                                            >
+                                                                Manage
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 )
@@ -601,7 +664,7 @@ export default function AdminDashboard() {
                                             {/* Pagination Controls Row */}
                                             {totalPages > 0 && (
                                                 <tr>
-                                                    <td colSpan="7" style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)' }}>
+                                                    <td colSpan="8" style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                                                 Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, sortedGroups.length)} of {sortedGroups.length} entries
@@ -646,6 +709,14 @@ export default function AdminDashboard() {
                     <p style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.15)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Designed and developed by Lou Vincent Baroro</p>
                 </div>
             </div>
+            {/* Manage Attendance Modal */}
+            {isManageModalOpen && (
+                <ManageAttendanceModal
+                    intern={selectedInternForManage}
+                    onClose={() => setIsManageModalOpen(false)}
+                    onRefresh={fetchAnalytics}
+                />
+            )}
         </div>
     )
 }

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import QRCode from 'react-qr-code'
 import { supabase } from '@/lib/supabase-browser'
 import { calculateTotalOjtHours, formatHours, formatManilaTime, formatManilaDate } from '@/utils/time'
+import { confirmUpdateAlert, confirmActionAlert } from '@/utils/swal-configs'
 import CustomMonthPicker from '@/components/CustomMonthPicker'
 import Swal from 'sweetalert2'
 
@@ -105,9 +106,12 @@ export default function InternDashboard() {
         setIsEditModalOpen(true)
     }
 
-    const handleUpdateInfo = async (e) => {
-        e.preventDefault()
-        if (!uuid) return
+    const handleUpdateInfo = async () => {
+        if (!editForm.full_name || !editForm.username) return
+        
+        const result = await Swal.fire(confirmUpdateAlert(editForm.full_name, 'profile info'))
+        if (!result.isConfirmed) return
+
         setIsSaving(true)
 
         try {
@@ -158,6 +162,13 @@ export default function InternDashboard() {
     const handleSubmitLeave = async (e) => {
         e.preventDefault()
         if (!intern || !leaveForm.date || !leaveForm.reason.trim()) return
+        
+        const result = await Swal.fire(confirmActionAlert(
+            'Submit Leave Request?',
+            `Are you sure you want to request leave for <span style="color: var(--info); font-weight: 700;">${new Date(leaveForm.date).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}</span>?`,
+            'Yes, Submit Request'
+        ))
+        if (!result.isConfirmed) return
         
         setIsSubmittingLeave(true)
         try {
@@ -588,14 +599,57 @@ export default function InternDashboard() {
                                                                 <td data-label="AM In">
                                                                     {morning?.time_in ? <span className="badge badge-success" style={{ fontSize: '0.625rem' }}>{formatManilaTime(morning.time_in)}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                                                                 </td>
-                                                                <td data-label="AM Out">
-                                                                    {morning?.time_out ? <span className="badge badge-warning" style={{ fontSize: '0.625rem' }}>{formatManilaTime(morning.time_out)}</span> : morning?.time_in ? <span style={{ color: 'var(--success)', fontSize: '0.75rem', fontWeight: 800 }}>● Active</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                                                                 <td data-label="AM Out">
+                                                                    {(() => {
+                                                                        const now = new Date()
+                                                                        const nowHr = Number(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
+                                                                        const todayKey = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+                                                                        const isPastDay = dateKey < todayKey
+                                                                        const isStale = !morning?.time_out && morning?.time_in && (isPastDay || nowHr >= 13)
+
+                                                                        if (morning?.time_out) {
+                                                                            if (morning.time_out === morning.time_in) {
+                                                                                return <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', background: 'rgba(239,68,68,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.375rem' }}>Did Not Time Out</span>
+                                                                            }
+                                                                            return <span className="badge badge-warning" style={{ fontSize: '0.625rem' }}>{formatManilaTime(morning.time_out)}</span>
+                                                                        }
+                                                                        
+                                                                        if (morning?.time_in) {
+                                                                            if (isStale) {
+                                                                                return <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', background: 'rgba(239,68,68,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.375rem' }}>Did Not Time Out</span>
+                                                                            }
+                                                                            return <span style={{ color: 'var(--success)', fontSize: '0.75rem', fontWeight: 800 }}>● Active</span>
+                                                                        }
+
+                                                                        return <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                                                    })()}
                                                                 </td>
                                                                 <td data-label="PM In">
                                                                     {afternoon?.time_in ? <span style={{ fontSize: '0.625rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '0.375rem', background: 'rgba(96,165,250,0.12)', color: 'rgba(96,165,250,0.9)' }}>{formatManilaTime(afternoon.time_in)}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                                                                 </td>
-                                                                <td data-label="PM Out">
-                                                                    {afternoon?.time_out ? <span style={{ fontSize: '0.625rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '0.375rem', background: 'rgba(96,165,250,0.08)', color: 'rgba(96,165,250,0.7)' }}>{formatManilaTime(afternoon.time_out)}</span> : afternoon?.time_in ? <span style={{ color: 'var(--success)', fontSize: '0.75rem', fontWeight: 800 }}>● Active</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                                                                 <td data-label="PM Out">
+                                                                    {(() => {
+                                                                        const now = new Date()
+                                                                        const todayKey = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+                                                                        const isPastDay = dateKey < todayKey
+                                                                        const isStale = !afternoon?.time_out && afternoon?.time_in && isPastDay
+
+                                                                        if (afternoon?.time_out) {
+                                                                            if (afternoon.time_out === afternoon.time_in) {
+                                                                                return <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', background: 'rgba(239,68,68,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.375rem' }}>Did Not Time Out</span>
+                                                                            }
+                                                                            return <span style={{ fontSize: '0.625rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '0.375rem', background: 'rgba(96,165,250,0.08)', color: 'rgba(96,165,250,0.7)' }}>{formatManilaTime(afternoon.time_out)}</span>
+                                                                        }
+
+                                                                        if (afternoon?.time_in) {
+                                                                            if (isStale) {
+                                                                                return <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em', background: 'rgba(239,68,68,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.375rem' }}>Did Not Time Out</span>
+                                                                            }
+                                                                            return <span style={{ color: 'var(--success)', fontSize: '0.75rem', fontWeight: 800 }}>● Active</span>
+                                                                        }
+
+                                                                        return <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                                                    })()}
                                                                 </td>
                                                                 <td data-label="Total Hours">
                                                                     <span style={{ fontWeight: 800, color: totalDayHours > 0 ? 'var(--gold)' : 'var(--text-muted)' }}>

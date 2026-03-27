@@ -136,3 +136,36 @@ export function confirmDeleteAlert(name) {
         confirmButtonColor: '#ef4444',
     }
 }
+
+/** Yellow — Update Confirmation */
+export function confirmUpdateAlert(name, item = 'record') {
+    const safeName = escapeHtml(name)
+    return {
+        ...BASE_POPUP,
+        title: `<span style="color: white; font-weight: 800; font-size: 1.1rem;">Update ${item}?</span>`,
+        html: `<div style="color: rgba(255,255,255,0.86); font-size: 0.95rem; margin-top: 0.4rem; line-height: 1.5; text-align: left;">
+            <div>Are you sure you want to save changes to <span style="color: var(--gold); font-weight: 700;">${safeName}</span>?</div>
+        </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, update it',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#C9A84C',
+    }
+}
+
+/** Blue/Generic — Generic Action Confirmation */
+export function confirmActionAlert(title, text, confirmText = 'Yes, proceed', icon = 'question') {
+    return {
+        ...BASE_POPUP,
+        title: `<span style="color: white; font-weight: 800; font-size: 1.1rem;">${title}</span>`,
+        html: `<div style="color: rgba(255,255,255,0.86); font-size: 0.95rem; margin-top: 0.4rem; line-height: 1.5; text-align: left;">
+            <div>${text}</div>
+        </div>`,
+        icon: icon,
+        showCancelButton: true,
+        confirmButtonText: confirmText,
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: icon === 'error' ? '#ef4444' : icon === 'success' ? '#10b981' : '#60a5fa',
+    }
+}

@@ -164,15 +164,23 @@ export default function AdminReports() {
                 grouped[key].logs.push(log)
             })
 
+            const now = new Date()
+            const nowHr = Number(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
+            const todayKey = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+
             Object.values(grouped).forEach(group => {
                 const dayLogs = group.logs
                 const morning = dayLogs.find(l => Number(new Date(l.time_in).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' })) < 12) || null
                 const afternoon = dayLogs.find(l => Number(new Date(l.time_in).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' })) >= 12) || null
                 
+                const isPastDay = group.dateStr < todayKey
+                const isStaleM = !morning?.time_out && morning?.time_in && (isPastDay || nowHr >= 13)
+                const isStaleA = !afternoon?.time_out && afternoon?.time_in && isPastDay
+
                 const mIn = morning?.time_in ? formatManilaTime(morning.time_in) : ''
-                const mOut = morning?.time_out ? formatManilaTime(morning.time_out) : ''
+                const mOut = morning?.time_out ? formatManilaTime(morning.time_out) : (isStaleM ? 'DID NOT TIME OUT' : (morning?.time_in ? 'ACTIVE' : ''))
                 const aIn = afternoon?.time_in ? formatManilaTime(afternoon.time_in) : ''
-                const aOut = afternoon?.time_out ? formatManilaTime(afternoon.time_out) : ''
+                const aOut = afternoon?.time_out ? formatManilaTime(afternoon.time_out) : (isStaleA ? 'DID NOT TIME OUT' : (afternoon?.time_in ? 'ACTIVE' : ''))
                 
                 const totalHours = dayLogs.reduce((sum, log) => sum + (log.time_out ? calculateHoursWorked(log.time_in, log.time_out) : 0), 0)
 
@@ -273,10 +281,17 @@ export default function AdminReports() {
                     const dateStr = new Date(`${row.dateKey}T12:00:00+08:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' })
                     const dayNameStr = new Date(`${row.dateKey}T12:00:00+08:00`).toLocaleDateString('en-PH', { weekday: 'short', timeZone: 'Asia/Manila' })
                     
+                    const now = new Date()
+                    const nowHr = Number(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
+                    const todayKey = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+                    const isPastDay = row.dateKey < todayKey
+                    const isStaleM = !row.morning?.time_out && row.morning?.time_in && (isPastDay || nowHr >= 13)
+                    const isStaleA = !row.afternoon?.time_out && row.afternoon?.time_in && isPastDay
+
                     const mIn = row.morning?.time_in ? formatManilaTime(row.morning.time_in) : '—'
-                    const mOut = row.morning?.time_out ? formatManilaTime(row.morning.time_out) : (row.morning?.time_in ? '•' : '—')
+                    const mOut = row.morning?.time_out ? formatManilaTime(row.morning.time_out) : (isStaleM ? '<span style="color:#ef4444;font-size:8px">MISSING</span>' : (row.morning?.time_in ? '•' : '—'))
                     const aIn = row.afternoon?.time_in ? formatManilaTime(row.afternoon.time_in) : '—'
-                    const aOut = row.afternoon?.time_out ? formatManilaTime(row.afternoon.time_out) : (row.afternoon?.time_in ? '•' : '—')
+                    const aOut = row.afternoon?.time_out ? formatManilaTime(row.afternoon.time_out) : (isStaleA ? '<span style="color:#ef4444;font-size:8px">MISSING</span>' : (row.afternoon?.time_in ? '•' : '—'))
                     const hrStr = row.hours > 0 ? formatHours(row.hours) : '—'
                     const statusStr = (row.morning && row.afternoon) ? '<span style="color:#166534;font-weight:700">FULL</span>' : (hasAny ? '<span style="color:#92400e;font-weight:700">HALF</span>' : '<span style="color:#ccc">ABSENT</span>')
                     
@@ -971,42 +986,56 @@ export default function AdminReports() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {dtrRows.filter(row => !row.isWeekend).map((row) => {
-                                                    const hasAny = row.morning || row.afternoon
-                                                    const rowClass = hasAny ? 'dtr-row-day' : 'dtr-row-absent'
-                                                    return (
-                                                        <tr key={row.date} className={rowClass}>
-                                                            <td style={{ fontWeight: 600 }}>{row.dayName}</td>
-                                                            <td style={{ fontWeight: hasAny ? 700 : 400, whiteSpace: 'nowrap' }}>
-                                                                {new Date(`${row.date}T12:00:00+08:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' })}
-                                                            </td>
-                                                            <td style={{ color: row.morning?.time_in ? '#166534' : undefined }}>
-                                                                {row.morning?.time_in ? formatManilaTime(row.morning.time_in) : '—'}
-                                                            </td>
-                                                            <td style={{ color: row.morning?.time_out ? '#92400e' : undefined }}>
-                                                                {row.morning?.time_out ? formatManilaTime(row.morning.time_out) : row.morning?.time_in ? '•' : '—'}
-                                                            </td>
-                                                            <td style={{ color: row.afternoon?.time_in ? '#1e40af' : undefined }}>
-                                                                {row.afternoon?.time_in ? formatManilaTime(row.afternoon.time_in) : '—'}
-                                                            </td>
-                                                            <td style={{ color: row.afternoon?.time_out ? '#6b21a8' : undefined }}>
-                                                                {row.afternoon?.time_out ? formatManilaTime(row.afternoon.time_out) : row.afternoon?.time_in ? '•' : '—'}
-                                                            </td>
+                                                {(() => {
+                                                    const now = new Date()
+                                                    const nowHr = Number(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
+                                                    const todayKey = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+
+                                                    return dtrRows.filter(row => !row.isWeekend).map((row) => {
+                                                        const hasAny = row.morning || row.afternoon
+                                                        const rowClass = hasAny ? 'dtr-row-day' : 'dtr-row-absent'
+                                                        
+                                                        const isStaleM = !row.morning?.time_out && row.morning?.time_in && (row.date < todayKey || nowHr >= 13)
+                                                        const isStaleA = !row.afternoon?.time_out && row.afternoon?.time_in && row.date < todayKey
+
+                                                        return (
+                                                            <tr key={row.date} className={rowClass}>
+                                                                <td style={{ fontWeight: 600 }}>{row.dayName}</td>
+                                                                <td style={{ fontWeight: hasAny ? 700 : 400, whiteSpace: 'nowrap' }}>
+                                                                    {new Date(`${row.date}T12:00:00+08:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' })}
+                                                                </td>
+                                                                <td style={{ color: row.morning?.time_in ? '#166534' : undefined }}>
+                                                                    {row.morning?.time_in ? formatManilaTime(row.morning.time_in) : '—'}
+                                                                </td>
+                                                                <td style={{ color: row.morning?.time_out ? '#92400e' : undefined }}>
+                                                                    {row.morning?.time_out ? formatManilaTime(row.morning.time_out) : isStaleM ? (
+                                                                        <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 700 }}>MISSING</span>
+                                                                    ) : row.morning?.time_in ? '•' : '—'}
+                                                                </td>
+                                                                <td style={{ color: row.afternoon?.time_in ? '#1e40af' : undefined }}>
+                                                                    {row.afternoon?.time_in ? formatManilaTime(row.afternoon.time_in) : '—'}
+                                                                </td>
+                                                                <td style={{ color: row.afternoon?.time_out ? '#6b21a8' : undefined }}>
+                                                                    {row.afternoon?.time_out ? formatManilaTime(row.afternoon.time_out) : isStaleA ? (
+                                                                        <span style={{ color: '#ef4444', fontSize: '0.625rem', fontWeight: 700 }}>MISSING</span>
+                                                                    ) : row.afternoon?.time_in ? '•' : '—'}
+                                                                </td>
                                                             <td style={{ fontWeight: 700, color: row.hours > 0 ? '#7B1C1C' : undefined }}>
                                                                 {row.hours > 0 ? formatHours(row.hours) : '—'}
                                                             </td>
-                                                            <td>
-                                                                {row.morning && row.afternoon ? (
-                                                                    <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#166534' }}>FULL</span>
-                                                                ) : hasAny ? (
-                                                                    <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#92400e' }}>HALF</span>
-                                                                ) : (
-                                                                    <span style={{ fontSize: '0.5625rem', color: '#ccc' }}>ABSENT</span>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    )
-                                                })}
+                                                                <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '0.75rem' }}>
+                                                                    {row.morning && row.afternoon ? (
+                                                                        <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#166534' }}>FULL</span>
+                                                                    ) : hasAny ? (
+                                                                        <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#92400e' }}>HALF</span>
+                                                                    ) : (
+                                                                        <span style={{ fontSize: '0.5625rem', color: '#ccc' }}>ABSENT</span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        )
+                                                    })
+                                                })()}
                                             </tbody>
                                             <tfoot>
                                                 <tr>

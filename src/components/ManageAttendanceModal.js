@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase-browser'
 import Swal from 'sweetalert2'
-import { confirmDeleteAlert } from '@/utils/swal-configs'
+import { confirmDeleteAlert, confirmUpdateAlert } from '@/utils/swal-configs'
 
 export default function ManageAttendanceModal({ intern, onClose, onRefresh }) {
     const [selectedDate, setSelectedDate] = useState('')
@@ -92,6 +92,9 @@ export default function ManageAttendanceModal({ intern, onClose, onRefresh }) {
         if (!timeIn) {
             return Swal.fire({ title: 'Missing Time In', text: 'You must provide a Time In to save the session.', icon: 'error', background: '#1f2937', color: '#fff', confirmButtonColor: '#c9a84c' })
         }
+
+        const result = await Swal.fire(confirmUpdateAlert(isMorning ? 'Morning Session' : 'Afternoon Session', 'attendance'))
+        if (!result.isConfirmed) return
 
         // --- Validate constraints ---
         const inHour = parseInt(timeIn.split(':')[0], 10)
