@@ -6,6 +6,7 @@ import QRCode from 'react-qr-code'
 import { supabase } from '@/lib/supabase-browser'
 import { calculateTotalOjtHours, formatHours, formatManilaTime, formatManilaDate } from '@/utils/time'
 import CustomMonthPicker from '@/components/CustomMonthPicker'
+import Swal from 'sweetalert2'
 
 export default function InternDashboard() {
     const router = useRouter()
@@ -112,8 +113,7 @@ export default function InternDashboard() {
         try {
             const updates = {
                 full_name: editForm.full_name,
-                username: editForm.username,
-                updated_at: new Date().toISOString()
+                username: editForm.username
             }
             if (editForm.password.trim() !== '') {
                 updates.password = editForm.password
@@ -130,8 +130,6 @@ export default function InternDashboard() {
             setIntern(prev => ({ ...prev, full_name: updates.full_name, username: updates.username }))
             setIsEditModalOpen(false)
             
-            // Re-import sweetalert dynamically for client side here if needed, or use a simple alert
-            const Swal = (await import('sweetalert2')).default
             Swal.fire({
                 title: 'Profile Updated!',
                 text: 'Your information has been successfully saved.',
@@ -143,7 +141,15 @@ export default function InternDashboard() {
             })
         } catch (error) {
             console.error('Error updating info:', error)
-            alert('Failed to update info. Try again.')
+            Swal.fire({
+                title: 'Update Failed',
+                text: error?.message || 'Failed to update info. Please try again.',
+                icon: 'error',
+                background: '#1a1f2c',
+                color: '#fff',
+                confirmButtonColor: '#ef4444',
+                customClass: { popup: 'luxury-swal-popup', confirmButton: 'luxury-swal-confirm' }
+            })
         } finally {
             setIsSaving(false)
         }
@@ -324,32 +330,76 @@ export default function InternDashboard() {
                                         <h1 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'white', letterSpacing: '-0.02em', margin: 0 }}>{intern?.full_name}</h1>
                                     </div>
 
-                                    <div style={{ position: 'relative' }}>
-                                        <div style={{ padding: '0.875rem', background: 'white', borderRadius: '1.5rem', boxShadow: '0 0 30px rgba(201,168,76,0.2)' }}>
-                                            <QRCode value={uuid} size={160} level="H" bgColor="#ffffff" fgColor="#0f172a" />
-                                        </div>
-                                    </div>
+                                    <AnimatePresence mode="wait">
+                                        {!isEditModalOpen ? (
+                                            <motion.div key="view-mode" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <div style={{ padding: '0.875rem', background: 'white', borderRadius: '1.5rem', boxShadow: '0 0 30px rgba(201,168,76,0.2)' }}>
+                                                        <QRCode value={uuid} size={160} level="H" bgColor="#ffffff" fgColor="#0f172a" />
+                                                    </div>
+                                                </div>
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                        <span className="badge" style={{ background: 'var(--maroon)', color: 'white', border: 'none' }}>Intern Pass</span>
-                                    </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                                    <span className="badge" style={{ background: 'var(--maroon)', color: 'white', border: 'none' }}>Intern Pass</span>
+                                                </div>
 
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
-                                        Present this QR code to the admin scanner to check in or out.
-                                    </p>
+                                                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textAlign: 'center', lineHeight: 1.5, margin: 0 }}>
+                                                    Present this QR code to the admin scanner to check in or out.
+                                                </p>
 
-                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', width: '100%' }}>
-                                        <button onClick={openEditModal} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0.625rem 0', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}
-                                            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}>
-                                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                                            Edit Info
-                                        </button>
-                                        <button onClick={() => setIsLeaveModalOpen(true)} style={{ flex: 1.5, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa', padding: '0.625rem 0', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}
-                                            onMouseOver={e => e.currentTarget.style.background = 'rgba(59,130,246,0.15)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}>
-                                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                            Request Leave
-                                        </button>
-                                    </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', width: '100%' }}>
+                                                    <button onClick={openEditModal} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0.625rem 0', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}
+                                                        onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}>
+                                                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                        Edit Info
+                                                    </button>
+                                                    <button onClick={() => setIsLeaveModalOpen(true)} style={{ flex: 1.5, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa', padding: '0.625rem 0', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}
+                                                        onMouseOver={e => e.currentTarget.style.background = 'rgba(59,130,246,0.15)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}>
+                                                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                        Request Leave
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        ) : (
+                                            <motion.div key="edit-form" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.25rem', borderRadius: '1.25rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <div style={{ marginBottom: '1rem' }}>
+                                                        <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.375rem' }}>Full Name</label>
+                                                        <input type="text" required placeholder="Juan Dela Cruz"
+                                                            style={{ width: '100%', padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', color: 'white', fontSize: '0.875rem', outline: 'none', transition: 'all 0.2s' }}
+                                                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--gold)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+                                                            value={editForm.full_name} onChange={e => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                                                        />
+                                                    </div>
+                                                    <div style={{ marginBottom: '1rem' }}>
+                                                        <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.375rem' }}>Username</label>
+                                                        <input type="text" required placeholder="jdelacruz"
+                                                            style={{ width: '100%', padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', color: 'white', fontSize: '0.875rem', outline: 'none', transition: 'all 0.2s' }}
+                                                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--gold)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+                                                            value={editForm.username} onChange={e => setEditForm(prev => ({ ...prev, username: e.target.value }))}
+                                                        />
+                                                    </div>
+                                                    <div style={{ marginBottom: '0.25rem' }}>
+                                                        <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.375rem' }}>New Password</label>
+                                                        <input type="password" placeholder="Leave blank to keep current"
+                                                            style={{ width: '100%', padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', color: 'white', fontSize: '0.875rem', outline: 'none', transition: 'all 0.2s' }}
+                                                            onFocus={e => { e.currentTarget.style.borderColor = 'var(--gold)' }} onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+                                                            value={editForm.password} onChange={e => setEditForm(prev => ({ ...prev, password: e.target.value }))}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                                                    <button type="button" onClick={() => setIsEditModalOpen(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: '1rem', background: 'rgba(255,255,255,0.05)', color: 'white', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                                        Cancel
+                                                    </button>
+                                                    <button type="button" onClick={handleUpdateInfo} disabled={isSaving} style={{ flex: 1.5, padding: '0.75rem', borderRadius: '1rem', background: 'linear-gradient(135deg, var(--gold), #b48e36)', color: '#111', fontWeight: 800, fontSize: '0.875rem', border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(201,168,76,0.3)' }}>
+                                                        {isSaving ? 'Saving...' : 'Save Changes'}
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             </div>
 
@@ -595,82 +645,7 @@ export default function InternDashboard() {
                     )}
                 </AnimatePresence>
 
-                {/* Edit Profile Modal */}
-                {/* Edit Profile Modal */}
-                <AnimatePresence>
-                    {isEditModalOpen && (
-                        <div style={{ position: 'fixed', inset: 0, zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditModalOpen(false)}
-                                style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)' }} />
-                            
-                            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                                style={{ position: 'relative', width: '100%', maxWidth: '24rem', background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '1.5rem', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset' }}>
-                                
-                                <div style={{ padding: '1.5rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to bottom, rgba(255,255,255,0.03), transparent)' }}>
-                                    <div>
-                                        <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 800, color: 'white', letterSpacing: '-0.01em' }}>Edit Profile</h3>
-                                        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Update your personal information</p>
-                                    </div>
-                                    <button onClick={() => setIsEditModalOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
-                                        onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}>
-                                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                    </button>
-                                </div>
 
-                                <form onSubmit={handleUpdateInfo} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                    <div className="input-group" style={{ position: 'relative' }}>
-                                        <label className="input-label" style={{ fontSize: '0.6875rem', color: 'var(--gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'block' }}>Full Name</label>
-                                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                            <svg style={{ position: 'absolute', left: '1rem', color: 'var(--text-muted)' }} width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                            <input type="text" required placeholder="Juan Dela Cruz"
-                                                style={{ width: '100%', padding: '0.875rem 1.25rem 0.875rem 2.875rem', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', color: 'white', fontSize: '0.9375rem', outline: 'none', transition: 'all 0.2s', fontFamily: 'inherit' }}
-                                                onFocus={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.background = 'rgba(0,0,0,0.4)'; e.currentTarget.previousSibling.style.color = 'var(--gold)' }}
-                                                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'rgba(0,0,0,0.25)'; e.currentTarget.previousSibling.style.color = 'var(--text-muted)' }}
-                                                value={editForm.full_name} onChange={e => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="input-group" style={{ position: 'relative' }}>
-                                        <label className="input-label" style={{ fontSize: '0.6875rem', color: 'var(--gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'block' }}>Username</label>
-                                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                            <svg style={{ position: 'absolute', left: '1rem', color: 'var(--text-muted)', transition: 'color 0.2s' }} width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" /></svg>
-                                            <input type="text" required placeholder="jdelacruz"
-                                                style={{ width: '100%', padding: '0.875rem 1.25rem 0.875rem 2.875rem', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', color: 'white', fontSize: '0.9375rem', outline: 'none', transition: 'all 0.2s', fontFamily: 'inherit' }}
-                                                onFocus={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.background = 'rgba(0,0,0,0.4)'; e.currentTarget.previousSibling.style.color = 'var(--gold)' }}
-                                                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'rgba(0,0,0,0.25)'; e.currentTarget.previousSibling.style.color = 'var(--text-muted)' }}
-                                                value={editForm.username} onChange={e => setEditForm(prev => ({ ...prev, username: e.target.value }))}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="input-group" style={{ position: 'relative' }}>
-                                        <label className="input-label" style={{ fontSize: '0.6875rem', color: 'var(--gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'block' }}>New Password</label>
-                                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                            <svg style={{ position: 'absolute', left: '1rem', color: 'var(--text-muted)', transition: 'color 0.2s' }} width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                            <input type="password" placeholder="Leave blank to keep current"
-                                                style={{ width: '100%', padding: '0.875rem 1.25rem 0.875rem 2.875rem', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', color: 'white', fontSize: '0.9375rem', outline: 'none', transition: 'all 0.2s', fontFamily: 'inherit' }}
-                                                onFocus={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.background = 'rgba(0,0,0,0.4)'; e.currentTarget.previousSibling.style.color = 'var(--gold)' }}
-                                                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'rgba(0,0,0,0.25)'; e.currentTarget.previousSibling.style.color = 'var(--text-muted)' }}
-                                                value={editForm.password} onChange={e => setEditForm(prev => ({ ...prev, password: e.target.value }))}
-                                            />
-                                        </div>
-                                    </div>
-                                    
-                                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                                        <button type="button" onClick={() => setIsEditModalOpen(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: '0.75rem', background: 'rgba(255,255,255,0.05)', color: 'white', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>Cancel</button>
-                                        <button type="submit" disabled={isSaving} style={{ flex: 1, padding: '0.75rem', borderRadius: '0.75rem', background: 'linear-gradient(135deg, var(--gold), #b48e36)', color: '#111', fontWeight: 800, fontSize: '0.875rem', border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(201,168,76,0.3)' }}>
-                                            {isSaving ? (
-                                                <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.3" /><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                                            ) : (
-                                                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                            )}
-                                            {isSaving ? 'Saving...' : 'Save Changes'}
-                                        </button>
-                                    </div>
-                                </form>
-                            </motion.div>
-                        </div>
-                    )}
-                </AnimatePresence>
 
                 {/* Request Leave Modal */}
                 <AnimatePresence>
