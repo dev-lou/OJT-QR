@@ -9,6 +9,46 @@ import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import { BAGONG_LOGO_B64 } from '@/utils/logo-bagong'
+import { ISUFST_LOGO_B64 } from '@/utils/logo-isufst'
+
+// ── Late / Undertime thresholds (Manila time, in minutes from midnight) ──
+const AM_LATE_AFTER    = 8 * 60       // 8:00 AM
+const AM_UT_BEFORE     = 11 * 60 + 30 // 11:30 AM
+const PM_LATE_AFTER    = 13 * 60 + 10 // 1:10 PM
+const PM_UT_BEFORE     = 17 * 60      // 5:00 PM
+
+function getManilaMinutes(iso) {
+    if (!iso) return null
+    const d = new Date(iso)
+    const h = Number(d.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
+    const m = Number(d.toLocaleString('en-US', { minute: 'numeric', timeZone: 'Asia/Manila' }))
+    return h * 60 + m
+}
+
+function getRowFlags(row) {
+    let isLate = false
+    let isUT = false
+    // Morning session
+    if (row.morning?.time_in) {
+        const inMin = getManilaMinutes(row.morning.time_in)
+        if (inMin !== null && inMin > AM_LATE_AFTER) isLate = true
+    }
+    if (row.morning?.time_out) {
+        const outMin = getManilaMinutes(row.morning.time_out)
+        if (outMin !== null && outMin < AM_UT_BEFORE) isUT = true
+    }
+    // Afternoon session
+    if (row.afternoon?.time_in) {
+        const inMin = getManilaMinutes(row.afternoon.time_in)
+        if (inMin !== null && inMin > PM_LATE_AFTER) isLate = true
+    }
+    if (row.afternoon?.time_out) {
+        const outMin = getManilaMinutes(row.afternoon.time_out)
+        if (outMin !== null && outMin < PM_UT_BEFORE) isUT = true
+    }
+    return { isLate, isUT }
+}
 
 export default function AdminReports() {
     const router = useRouter()
@@ -275,12 +315,12 @@ export default function AdminReports() {
                 const daysPresent = rows.filter(r => r.morning || r.afternoon).length
 
                 // Safely build table rows string bypassing React
-                const tableRowsHtml = rows.filter(r => !r.isWeekend).map(row => {
+                const tableRowsHtml = rows.map(row => {
                     const hasAny = row.morning || row.afternoon
-                    const bg = hasAny ? '#fafff8' : '#fff'
+                    const bg = row.isWeekend ? (hasAny ? '#fafff8' : '#f7f7f7') : (hasAny ? '#fafff8' : '#fff')
                     const dateStr = new Date(`${row.dateKey}T12:00:00+08:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' })
                     const dayNameStr = new Date(`${row.dateKey}T12:00:00+08:00`).toLocaleDateString('en-PH', { weekday: 'short', timeZone: 'Asia/Manila' })
-                    
+
                     const now = new Date()
                     const nowHr = Number(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
                     const todayKey = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
@@ -293,18 +333,22 @@ export default function AdminReports() {
                     const aIn = row.afternoon?.time_in ? formatManilaTime(row.afternoon.time_in) : '—'
                     const aOut = row.afternoon?.time_out ? formatManilaTime(row.afternoon.time_out) : (isStaleA ? '<span style="color:#ef4444;font-size:8px">MISSING</span>' : (row.afternoon?.time_in ? '•' : '—'))
                     const hrStr = row.hours > 0 ? formatHours(row.hours) : '—'
-                    const statusStr = (row.morning && row.afternoon) ? '<span style="color:#166534;font-weight:700">FULL</span>' : (hasAny ? '<span style="color:#92400e;font-weight:700">HALF</span>' : '<span style="color:#ccc">ABSENT</span>')
+                    const { isLate, isUT } = getRowFlags(row)
+                    const mainStatus = (row.morning && row.afternoon) ? '<span style="color:#166534;font-weight:700">FULL</span>' : (hasAny ? '<span style="color:#92400e;font-weight:700">HALF</span>' : '<span style="color:#ccc">ABSENT</span>')
+                    const lateTag = isLate ? '<div style="font-size:7px;color:#dc2626;font-weight:700;line-height:1">LATE</div>' : ''
+                    const utTag = isUT ? '<div style="font-size:7px;color:#9333ea;font-weight:700;line-height:1">UT</div>' : ''
+                    const statusStr = `${mainStatus}${lateTag}${utTag}`
                     
                     return `
                         <tr>
-                            <td style="border: 1px solid #bbb; padding: 4px; background:${bg}; font-weight: 600">${dayNameStr}</td>
-                            <td style="border: 1px solid #bbb; padding: 4px; background:${bg}">${dateStr}</td>
-                            <td style="border: 1px solid #bbb; padding: 4px; background:${bg}; color: ${row.morning?.time_in ? '#166534': ''}">${mIn}</td>
-                            <td style="border: 1px solid #bbb; padding: 4px; background:${bg}; color: ${row.morning?.time_out ? '#92400e': ''}">${mOut}</td>
-                            <td style="border: 1px solid #bbb; padding: 4px; background:${bg}; color: ${row.afternoon?.time_in ? '#1e40af': ''}">${aIn}</td>
-                            <td style="border: 1px solid #bbb; padding: 4px; background:${bg}; color: ${row.afternoon?.time_out ? '#6b21a8': ''}">${aOut}</td>
-                            <td style="border: 1px solid #bbb; padding: 4px; background:${bg}; font-weight:700; color:#7B1C1C">${hrStr}</td>
-                            <td style="border: 1px solid #bbb; padding: 4px; background:${bg}; font-size:10px">${statusStr}</td>
+                            <td style="border: 1px solid #bbb; padding: 1px 2px; background:${bg}; font-weight: 600">${dayNameStr}</td>
+                            <td style="border: 1px solid #bbb; padding: 1px 2px; background:${bg}">${dateStr}</td>
+                            <td style="border: 1px solid #bbb; padding: 1px 2px; background:${bg}; color: ${row.morning?.time_in ? '#166534': ''}">${mIn}</td>
+                            <td style="border: 1px solid #bbb; padding: 1px 2px; background:${bg}; color: ${row.morning?.time_out ? '#92400e': ''}">${mOut}</td>
+                            <td style="border: 1px solid #bbb; padding: 1px 2px; background:${bg}; color: ${row.afternoon?.time_in ? '#1e40af': ''}">${aIn}</td>
+                            <td style="border: 1px solid #bbb; padding: 1px 2px; background:${bg}; color: ${row.afternoon?.time_out ? '#6b21a8': ''}">${aOut}</td>
+                            <td style="border: 1px solid #bbb; padding: 1px 2px; background:${bg}; font-weight:700; color:#7B1C1C">${hrStr}</td>
+                            <td style="border: 1px solid #bbb; padding: 1px 2px; background:${bg}; font-size:9px">${statusStr}</td>
                         </tr>
                     `
                 }).join('')
@@ -319,19 +363,31 @@ export default function AdminReports() {
                 ghostDiv.style.background = 'white'
                 ghostDiv.style.color = '#111'
                 ghostDiv.style.fontFamily = '"Times New Roman", Times, serif'
-                ghostDiv.style.padding = '18mm 14mm'
+                ghostDiv.style.padding = '8mm 0 0 0'
                 ghostDiv.style.boxSizing = 'border-box'
                 ghostDiv.style.zIndex = '-99'
+                ghostDiv.style.fontSize = '8pt'
                 
                 ghostDiv.innerHTML = `
-                    <div style="border-bottom: 3px double #7B1C1C; padding-bottom: 8px; margin-bottom: 8px; text-align: center;">
-                        <div style="font-size: 11px; color: #666; letter-spacing: 0.1em; text-transform: uppercase;">Republic of the Philippines</div>
-                        <div style="font-size: 18px; font-weight: 900; color: #000080; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1.2;">Iloilo State University of Fisheries</div>
-                        <div style="font-size: 18px; font-weight: 900; color: #000080; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1.2;">Science and Technology</div>
-                        <div style="font-size: 13px; font-weight: 700; color: #7B1C1C; letter-spacing: 0.05em; margin-top: 2px;">College of Information and Communication Technology (CICT)</div>
-                        <div style="font-size: 11px; color: #666; margin-top: 2px;">Dingle Campus | Website: isufst.edu.ph | (033) 337-1544 / (+63) 963-463-8274</div>
-                        <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #eee; font-size: 14.5px; font-weight: 800; color: #222; letter-spacing: 0.12em; text-transform: uppercase;">― Daily Time Record ―</div>
-                        <div style="font-size: 10px; color: #888; letter-spacing: 0.05em;">On-the-Job Training • ${monthLabelStr}</div>
+                    <div style="border-bottom: 2px solid #5B9BD5; padding-bottom: 8px; margin-bottom: 10px; margin-left: 4mm; margin-right: 4mm;">
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 0 6mm;">
+                            <img src="${ISUFST_LOGO_B64}" style="width: 104px; height: auto; flex-shrink: 0;" />
+                            <div style="flex: 1; text-align: center;">
+                                <div style="font-size: 10px; color: #444; letter-spacing: 0.06em;">Republic of the Philippines</div>
+                                <div style="font-size: 13px; font-weight: 700; color: #0070C0; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.25;">ILOILO STATE UNIVERSITY OF FISHERIES SCIENCE AND TECHNOLOGY</div>
+                                <div style="font-size: 12px; font-weight: 700; color: #111; letter-spacing: 0.02em; margin-top: 1px; font-family: Arial, sans-serif;">COLLEGE OF INFORMATION AND COMMUNICATIONS TECHNOLOGY</div>
+                                <div style="font-size: 9px; color: #555; margin-top: 2px;">Dingle, Iloilo / Email: cict_dingle@isufst.edu.ph</div>
+                                <div style="font-size: 9px; color: #555;">Website: isufst.edu.ph | Contact No: (033) 337 \u2013 1544 / (+63)9634638274</div>
+                            </div>
+                            <div style="flex-shrink: 0; text-align: center;">
+                                <img src="${BAGONG_LOGO_B64}" style="width: 80px; height: auto;" />
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding: 0 14mm 14mm 14mm;">
+                    <div style="text-align: center; margin-bottom: 6px;">
+                        <div style="font-size: 14px; font-weight: 800; color: #222; letter-spacing: 0.1em; text-transform: uppercase;">\u2015 Daily Time Record \u2015</div>
+                        <div style="font-size: 10px; color: #888; letter-spacing: 0.05em;">On-the-Job Training \u2022 ${monthLabelStr}</div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid #7B1C1C; margin: 8px 0; background: white;">
@@ -389,22 +445,26 @@ export default function AdminReports() {
                         record of which was made daily at the time of arrival and departure from office.
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 25px; padding-top: 10px; border-top: 1.5px solid #7B1C1C;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 15px; padding-top: 6px; border-top: 1.5px solid #7B1C1C;">
                         <div style="text-align: center;">
-                            <div style="border-bottom: 1px solid #333; margin-bottom: 4px; height: 35px;"></div>
-                            <div style="font-size: 13px; font-weight: 700; color: #111;">${data.info.full_name}</div>
-                            <div style="font-size: 10px; color: #666;">Signature of Trainee</div>
+                            <div style="border-bottom: 1px solid #333; margin-bottom: 3px; height: 20px;"></div>
+                            <div style="font-size: 11px; font-weight: 700; color: #111;">${data.info.full_name}</div>
+                            <div style="font-size: 9px; color: #666;">Signature of Trainee</div>
                         </div>
                         <div style="text-align: center;">
-                            <div style="border-bottom: 1px solid #333; margin-bottom: 4px; height: 35px;"></div>
-                            <div style="font-size: 13px; font-weight: 700; color: #111;">___________________</div>
-                            <div style="font-size: 10px; color: #666;">Immediate Supervisor</div>
+                            <div style="border-bottom: 1px solid #333; margin-bottom: 3px; height: 20px;"></div>
+                            <div style="font-size: 11px; font-weight: 700; color: #111;">___________________</div>
+                            <div style="font-size: 9px; color: #666;">Immediate Supervisor</div>
                         </div>
                         <div style="text-align: center;">
-                            <div style="border-bottom: 1px solid #333; margin-bottom: 4px; height: 35px;"></div>
-                            <div style="font-size: 13px; font-weight: 700; color: #111;">___________________</div>
-                            <div style="font-size: 10px; color: #666;">OJT Coordinator</div>
+                            <div style="border-bottom: 1px solid #333; margin-bottom: 3px; height: 20px;"></div>
+                            <div style="font-size: 11px; font-weight: 700; color: #111;">___________________</div>
+                            <div style="font-size: 9px; color: #666;">OJT Coordinator</div>
                         </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 12px; padding-top: 6px; border-top: 1.5px solid rgba(123,28,28,0.2); font-size: 9px; color: #888; letter-spacing: 0.05em;">
+                        ISUFST Dingle Campus &nbsp;\u2022&nbsp; CICT Department &nbsp;\u2022&nbsp; isufst.edu.ph &nbsp;\u2022&nbsp; OJT Attendance System
+                    </div>
                     </div>
                 `
                 document.body.appendChild(ghostDiv)
@@ -416,11 +476,10 @@ export default function AdminReports() {
                 // Build jsPDF instance
                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
                 
-                // Calculate dimensions
                 const pdfWidth = pdf.internal.pageSize.getWidth()
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+                const imgHeight = (canvas.height * pdfWidth) / canvas.width
                 
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight)
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight)
                 
                 // Add to Zip Buffer
                 const safeName = data.info.full_name.replace(/[^a-z0-9]/gi, '_').toLowerCase()
@@ -443,7 +502,7 @@ export default function AdminReports() {
     }
 
     const totalMonthHours = dtrRows.reduce((sum, r) => sum + r.hours, 0)
-    const daysPresent = dtrRows.filter(r => r.timeIn).length
+    const daysPresent = dtrRows.filter(r => r.morning || r.afternoon).length
 
     const handlePrint = async () => {
         const element = document.getElementById('print-area')
@@ -455,9 +514,9 @@ export default function AdminReports() {
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
             
             const pdfWidth = pdf.internal.pageSize.getWidth()
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+            const imgHeight = (canvas.height * pdfWidth) / canvas.width
             
-            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight)
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight)
             
             const safeName = selectedIntern?.full_name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'employee'
             pdf.save(`${safeName}_dtr_${selectedMonth}.pdf`)
@@ -489,20 +548,19 @@ export default function AdminReports() {
                     max-width: 210mm;
                     margin: 0 auto;
                     box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-                    padding: 18mm 14mm;
+                    padding: 8mm 0 0 0;
+                }
+                
+                .dtr-content-wrapper {
+                    padding: 0 14mm 14mm 14mm;
                 }
 
                 .dtr-gov-header {
                     background: white;
                     border: none;
                     border-radius: 0;
-                    border-bottom: 3px double #7B1C1C;
-                    padding: 0 0 8px 0;
+                    padding: 0;
                     margin-bottom: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 12px;
                     text-align: center;
                 }
 
@@ -541,7 +599,7 @@ export default function AdminReports() {
                 .dtr-table thead tr { background: #7B1C1C !important; color: white !important; }
                 .dtr-table th {
                     border: 1px solid #7B1C1C;
-                    padding: 4px 5px;
+                    padding: 3px 5px;
                     text-align: center;
                     font-size: 7.5pt;
                     font-weight: 700;
@@ -549,8 +607,9 @@ export default function AdminReports() {
                     background: #7B1C1C !important;
                     color: white !important;
                 }
-                .dtr-table td { border: 1px solid #bbb; padding: 3.5px 5px; text-align: center; color: #111; }
+                .dtr-table td { border: 1px solid #bbb; padding: 2px 4px; text-align: center; color: #111; }
                 .dtr-row-day td { background: #fafff8 !important; color: #111 !important; }
+                .dtr-row-weekend td { background: #f7f7f7 !important; color: #bbb !important; }
                 .dtr-row-absent td { background: white !important; color: #ccc !important; }
                 .dtr-table tfoot td {
                     background: #fef9ed !important;
@@ -611,10 +670,13 @@ export default function AdminReports() {
                         top: 0 !important;
                         left: 0 !important;
                         width: 100% !important;
-                        padding: 14mm 14mm !important;
+                        padding: 8mm 0 0 0 !important;
                         box-sizing: border-box !important;
                         background: white !important;
                         color: #111 !important;
+                    }
+                    .dtr-content-wrapper {
+                        padding: 0 14mm 14mm 14mm !important;
                     }
                     .dtr-print-wrapper {
                         box-shadow: none !important;
@@ -630,13 +692,8 @@ export default function AdminReports() {
                         background: white;
                         border: none;
                         border-radius: 0;
-                        border-bottom: 3px double #7B1C1C;
-                        padding: 0 0 8px 0;
+                        padding: 0;
                         margin-bottom: 8px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 12px;
                         text-align: center;
                     }
 
@@ -930,16 +987,25 @@ export default function AdminReports() {
 
                                 {/* ── ISUFST Gov-Style Header ── */}
                                 <div className="dtr-gov-header">
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ fontSize: '0.625rem', color: '#666', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 2 }}>Republic of the Philippines</div>
-                                        <div style={{ fontSize: '1rem', fontWeight: 900, color: '#000080', letterSpacing: '0.03em', textTransform: 'uppercase', lineHeight: 1.2 }}>Iloilo State University of Fisheries</div>
-                                        <div style={{ fontSize: '1rem', fontWeight: 900, color: '#000080', letterSpacing: '0.03em', textTransform: 'uppercase', lineHeight: 1.2 }}>Science and Technology</div>
-                                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#7B1C1C', letterSpacing: '0.05em', marginTop: 2 }}>College of Information and Communication Technology (CICT)</div>
-                                        <div style={{ fontSize: '0.625rem', color: '#666', marginTop: 2 }}>Dingle Campus &nbsp;|&nbsp; Website: isufst.edu.ph &nbsp;|&nbsp; (033) 337-1544 / (+63) 963-463-8274</div>
-                                        <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #eee', fontSize: '0.8125rem', fontWeight: 800, color: '#222', letterSpacing: '0.12em', textTransform: 'uppercase' }}>― Daily Time Record ―</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', borderBottom: '2px solid #5B9BD5', paddingBottom: 8, marginBottom: 10, marginLeft: '4mm', marginRight: '4mm', paddingLeft: '6mm', paddingRight: '6mm' }}>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={ISUFST_LOGO_B64} alt="ISUFST" style={{ width: '6.5rem', height: 'auto', flexShrink: 0 }} />
+                                        <div style={{ flex: 1, textAlign: 'center' }}>
+                                            <div style={{ fontSize: '0.625rem', color: '#444', letterSpacing: '0.06em' }}>Republic of the Philippines</div>
+                                            <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0070C0', letterSpacing: '0.02em', textTransform: 'uppercase', lineHeight: 1.25 }}>ILOILO STATE UNIVERSITY OF FISHERIES SCIENCE AND TECHNOLOGY</div>
+                                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#111', letterSpacing: '0.02em', marginTop: 1, fontFamily: 'Arial, sans-serif' }}>COLLEGE OF INFORMATION AND COMMUNICATIONS TECHNOLOGY</div>
+                                            <div style={{ fontSize: '0.5625rem', color: '#555', marginTop: 2 }}>Dingle, Iloilo / Email: cict_dingle@isufst.edu.ph</div>
+                                            <div style={{ fontSize: '0.5625rem', color: '#555' }}>Website: isufst.edu.ph | Contact No: (033) 337 – 1544 / (+63)9634638274</div>
+                                        </div>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={BAGONG_LOGO_B64} alt="Bagong Pilipinas" style={{ width: '5rem', height: 'auto', flexShrink: 0 }} />
+                                    </div>
+                                    <div style={{ textAlign: 'center', marginBottom: 6 }}>
+                                        <div style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#222', letterSpacing: '0.1em', textTransform: 'uppercase' }}>― Daily Time Record ―</div>
                                         <div style={{ fontSize: '0.5625rem', color: '#888', letterSpacing: '0.05em' }}>On-the-Job Training &nbsp;•&nbsp; {monthLabel}</div>
                                     </div>
                                 </div>
+                                <div className="dtr-content-wrapper">
 
                                 {/* ── Meta Grid ── */}
                                 <div className="dtr-meta-grid">
@@ -991,9 +1057,9 @@ export default function AdminReports() {
                                                     const nowHr = Number(now.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
                                                     const todayKey = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
 
-                                                    return dtrRows.filter(row => !row.isWeekend).map((row) => {
+                                                    return dtrRows.map((row) => {
                                                         const hasAny = row.morning || row.afternoon
-                                                        const rowClass = hasAny ? 'dtr-row-day' : 'dtr-row-absent'
+                                                        const rowClass = row.isWeekend ? (hasAny ? 'dtr-row-day' : 'dtr-row-weekend') : (hasAny ? 'dtr-row-day' : 'dtr-row-absent')
                                                         
                                                         const isStaleM = !row.morning?.time_out && row.morning?.time_in && (row.date < todayKey || nowHr >= 13)
                                                         const isStaleA = !row.afternoon?.time_out && row.afternoon?.time_in && row.date < todayKey
@@ -1031,6 +1097,15 @@ export default function AdminReports() {
                                                                     ) : (
                                                                         <span style={{ fontSize: '0.5625rem', color: '#ccc' }}>ABSENT</span>
                                                                     )}
+                                                                    {(() => {
+                                                                        const { isLate, isUT } = getRowFlags(row)
+                                                                        return (
+                                                                            <>
+                                                                                {isLate && <div style={{ fontSize: '0.5rem', color: '#dc2626', fontWeight: 700, lineHeight: 1 }}>LATE</div>}
+                                                                                {isUT && <div style={{ fontSize: '0.5rem', color: '#9333ea', fontWeight: 700, lineHeight: 1 }}>UT</div>}
+                                                                            </>
+                                                                        )
+                                                                    })()}
                                                                 </td>
                                                             </tr>
                                                         )
@@ -1076,6 +1151,8 @@ export default function AdminReports() {
                                     <div className="dtr-print-footer">
                                         ISUFST Dingle Campus &nbsp;•&nbsp; CICT Department &nbsp;•&nbsp; isufst.edu.ph &nbsp;•&nbsp; OJT Attendance System
                                     </div>
+
+                                </div> {/* End of dtr-content-wrapper */}
 
                                     {/* Print Button */}
                                     <div data-html2canvas-ignore="true" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }} className="no-print">
