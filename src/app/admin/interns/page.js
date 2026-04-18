@@ -34,19 +34,36 @@ export default function AdminInterns() {
         if (!supabase) return
         setLoading(true)
         try {
-            // Get all interns
+            // 1. Get all interns
             const { data: internData } = await supabase
                 .from('interns')
                 .select('*')
                 .order('full_name')
 
-            // Get all attendance to compute total hours per intern
-            const { data: attendanceData } = await supabase
-                .from('attendance')
-                .select('intern_id, time_in, time_out')
+            // 2. Clear & Deep Fetch All Attendance (bypass 1000 limit)
+            let allLogs = []
+            let page = 0
+            const pageSize = 1000
+            let hasMore = true
+
+            while (hasMore) {
+                const { data, error } = await supabase
+                    .from('attendance')
+                    .select('intern_id, time_in, time_out')
+                    .range(page * pageSize, (page + 1) * pageSize - 1)
+                
+                if (error) throw error
+                if (data && data.length > 0) {
+                    allLogs = [...allLogs, ...data]
+                    if (data.length < pageSize) hasMore = false
+                    else page++
+                } else {
+                    hasMore = false
+                }
+            }
 
             const internList = (internData || []).map(intern => {
-                const logs = (attendanceData || []).filter(a => a.intern_id === intern.id)
+                const logs = allLogs.filter(a => a.intern_id === intern.id)
                 const totalHours = calculateTotalOjtHours(logs)
                 const requiredHours = intern.required_hours || 600
                 return {

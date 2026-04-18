@@ -67,11 +67,30 @@ export default function AdminDashboard() {
                 .select('*', { count: 'exact', head: true })
                 .is('time_out', null)
 
-            // 3. Get all attendance logs for hours calculation & full logbook
-            const { data: allAttendance } = await supabase
+            // 3. Prepare filters for the logbook fetch
+            let query = supabase
                 .from('attendance')
                 .select('*, interns(full_name)')
                 .order('time_in', { ascending: false })
+
+            if (filterType === 'day' && filterDate) {
+                const start = `${filterDate}T00:00:00+08:00`
+                const end = `${filterDate}T23:59:59.999+08:00`
+                query = query.gte('time_in', start).lte('time_in', end)
+            } else if (filterType === 'month' && filterMonth) {
+                const start = `${filterMonth}-01T00:00:00+08:00`
+                // Simple way to get the end of month or start of next month
+                const nextMonth = new Date(filterMonth + '-02');
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                const endMonthKey = nextMonth.toISOString().slice(0, 7);
+                const end = `${endMonthKey}-01T00:00:00+08:00`
+                query = query.gte('time_in', start).lt('time_in', end)
+            } else if (filterType === 'all') {
+                // For "All Time", we show the most recent 1000 rows
+                query = query.limit(1000)
+            }
+
+            const { data: logData } = await query
 
             // 4. Fetch Pending Leave Requests
             const { data: pendingRequests } = await supabase
@@ -80,34 +99,41 @@ export default function AdminDashboard() {
                 .eq('status', 'pending')
                 .order('created_at', { ascending: true })
 
-            // 5. Calculate today's stats (Manila time)
+            // 5. Calculate today's stats (Manila time) - ALWAYS based on today regardless of filter
             const manilaTodayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
             
+            // We need a separate quick fetch for today's stats if the current filter isn't today
+            let todayLogs = []
+            const isFilterToday = filterType === 'day' && filterDate === manilaTodayStr
+            
+            if (isFilterToday && logData) {
+                todayLogs = logData
+            } else {
+                const startToday = `${manilaTodayStr}T00:00:00+08:00`
+                const endToday = `${manilaTodayStr}T23:59:59.999+08:00`
+                const { data: todayRes } = await supabase
+                    .from('attendance')
+                    .select('intern_id, time_in, time_out')
+                    .gte('time_in', startToday)
+                    .lte('time_in', endToday)
+                todayLogs = todayRes || []
+            }
+
             let morningInCount = new Set()
             let morningOutCount = new Set()
             let afternoonInCount = new Set()
             let afternoonOutCount = new Set()
 
-            if (allAttendance) {
-               allAttendance.forEach(log => {
-                   const logDateInStr = new Date(log.time_in).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-                   if (logDateInStr === manilaTodayStr) {
-                       const logHr = Number(new Date(log.time_in).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
-                       
-                       if (logHr < 12) {
-                           morningInCount.add(log.intern_id);
-                           if (log.time_out) {
-                               morningOutCount.add(log.intern_id);
-                           }
-                       } else {
-                           afternoonInCount.add(log.intern_id);
-                           if (log.time_out) {
-                               afternoonOutCount.add(log.intern_id);
-                           }
-                       }
-                   }
-               })
-            }
+            todayLogs.forEach(log => {
+                const logHr = Number(new Date(log.time_in).toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
+                if (logHr < 12) {
+                    morningInCount.add(log.intern_id);
+                    if (log.time_out) morningOutCount.add(log.intern_id);
+                } else {
+                    afternoonInCount.add(log.intern_id);
+                    if (log.time_out) afternoonOutCount.add(log.intern_id);
+                }
+            })
 
             setStats({
                 totalInterns,
@@ -115,7 +141,7 @@ export default function AdminDashboard() {
                 morningOut: morningOutCount.size,
                 afternoonIn: afternoonInCount.size,
                 afternoonOut: afternoonOutCount.size,
-                allLogs: allAttendance || [],
+                allLogs: logData || [],
                 pendingLeaves: pendingRequests || []
             })
         } catch (err) {
@@ -123,7 +149,7 @@ export default function AdminDashboard() {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [filterType, filterDate, filterMonth])
 
     useEffect(() => {
         if (admin) {
@@ -531,18 +557,7 @@ export default function AdminDashboard() {
                                             const groupedLogs = {}
                                             
                                             // Apply selected filter to logs
-                                            const filteredLogs = stats.allLogs.filter(log => {
-                                                if (!log.time_in) return false;
-                                                const logDateStr = new Date(log.time_in).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-                                                
-                                                if (filterType === 'day' && filterDate) {
-                                                    return logDateStr === filterDate;
-                                                } else if (filterType === 'month' && filterMonth) {
-                                                    return logDateStr.startsWith(filterMonth);
-                                                }
-                                                // If 'all' or no specific filter set, show everything
-                                                return true;
-                                            });
+                                            const filteredLogs = stats.allLogs;
 
                                             if (filteredLogs.length === 0) {
                                                 return (

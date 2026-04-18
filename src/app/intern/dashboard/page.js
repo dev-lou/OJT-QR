@@ -19,6 +19,7 @@ export default function InternDashboard() {
     const [filterType, setFilterType] = useState('month') // 'day', 'month', 'all'
     const [filterDate, setFilterDate] = useState('') // Daily filter for logbook
     const [filterMonth, setFilterMonth] = useState('')
+    const [logbookData, setLogbookData] = useState([]) // Data specifically for the filtered logs view
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 10
     
@@ -46,7 +47,7 @@ export default function InternDashboard() {
         if (!uuid || !supabase) return
         setLoading(true)
         try {
-            // First fetch intern to get intern.id
+            // 1. Fetch intern info
             const { data: internData, error: internError } = await supabase
                 .from('interns')
                 .select('*')
@@ -54,39 +55,80 @@ export default function InternDashboard() {
                 .single()
             
             if (internError) throw internError
+            if (!internData) return
 
-            if (internData) {
-                setIntern(internData)
-                
-                // Then fetch attendance and leave requests using intern.id in parallel
-                const [attendanceRes, leaveRes] = await Promise.all([
-                    supabase.from('attendance')
-                        .select('*')
-                        .eq('intern_id', internData.id)
-                        .order('time_in', { ascending: false }),
-                    supabase.from('leave_requests')
-                        .select('*')
-                        .eq('intern_id', internData.id)
-                        .order('created_at', { ascending: false })
-                ])
-                
-                if (attendanceRes.error) console.error('Attendance fetch error:', attendanceRes.error)
-                if (leaveRes.error) console.error('Leave fetch error:', leaveRes.error)
+            setIntern(internData)
 
-                setAttendance(attendanceRes.data || [])
-                setLeaveRequests(leaveRes.data || [])
+            // 2. Deep Fetch Attendance for Total Hours (bypass 1000 limit)
+            let allLogs = []
+            let page = 0
+            const pageSize = 1000
+            let hasMore = true
+            
+            while (hasMore) {
+                const { data, error } = await supabase
+                    .from('attendance')
+                    .select('*')
+                    .eq('intern_id', internData.id)
+                    .order('time_in', { ascending: false })
+                    .range(page * pageSize, (page + 1) * pageSize - 1)
+                
+                if (error) throw error
+                if (data && data.length > 0) {
+                    allLogs = [...allLogs, ...data]
+                    if (data.length < pageSize) hasMore = false
+                    else page++
+                } else {
+                    hasMore = false
+                }
             }
+
+            // 3. Prepare query for the Logbook (with server-side filtering)
+            let logQuery = supabase.from('attendance')
+                .select('*')
+                .eq('intern_id', internData.id)
+                .order('time_in', { ascending: false })
+
+            if (filterType === 'day' && filterDate) {
+                const start = `${filterDate}T00:00:00+08:00`
+                const end = `${filterDate}T23:59:59.999+08:00`
+                logQuery = logQuery.gte('time_in', start).lte('time_in', end)
+            } else if (filterType === 'month' && filterMonth) {
+                const start = `${filterMonth}-01T00:00:00+08:00`
+                const nextMonth = new Date(filterMonth + '-02');
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                const endMonthKey = nextMonth.toISOString().slice(0, 7);
+                const end = `${endMonthKey}-01T00:00:00+08:00`
+                logQuery = logQuery.gte('time_in', start).lt('time_in', end)
+            } else {
+                // For "All", we already have allLogs from the deep fetch
+            }
+
+            const { data: logDisplayData } = await logQuery
+
+            // 4. Fetch leave requests
+            const { data: leaveRequests } = await supabase.from('leave_requests')
+                .select('*')
+                .eq('intern_id', internData.id)
+                .order('created_at', { ascending: false })
+
+            setAttendance(allLogs) // Used for total hours progress
+            setLeaveRequests(leaveRequests || [])
+            // Note: We'll use logDisplayData for the logbook display specifically if needed, 
+            // but since we have allLogs, we could just filter in JS for the intern's own smaller dataset.
+            // HOWEVER, the user wants "server accurate" filters, so we'll use logDisplayData for the logs view.
+            setLogbookData(logDisplayData || [])
+
         } catch (err) {
             console.error('Failed to load data:', JSON.stringify(err, null, 2), err)
             if (err.code === 'PGRST116') {
-                // Not found. Invalid UUID in local storage.
                 localStorage.removeItem('intern_uuid')
                 router.replace('/intern/login')
             }
         } finally {
             setLoading(false)
         }
-    }, [uuid])
+    }, [uuid, filterType, filterDate, filterMonth])
 
     useEffect(() => {
         if (uuid) fetchData()
@@ -463,7 +505,7 @@ export default function InternDashboard() {
                                 <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                         <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>My Attendance Log</p>
-                                        <span className="badge badge-gold">{new Set(attendance.map(r => new Date(r.time_in).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }))).size} days</span>
+                                        <span className="badge badge-gold">{new Set(logbookData.map(r => new Date(r.time_in).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }))).size} days</span>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                                         {/* Segmented Filter Control */}
@@ -524,7 +566,7 @@ export default function InternDashboard() {
                                     </div>
                                 </div>
 
-                                {attendance.length === 0 ? (
+                                {logbookData.length === 0 ? (
                                     <div style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
                                         <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.15)" strokeWidth={1.5} style={{ margin: '0 auto 1rem' }}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -534,18 +576,15 @@ export default function InternDashboard() {
                                 ) : (() => {
                                     // Group records by date
                                     const grouped = {}
-                                    attendance.forEach(row => {
+                                    logbookData.forEach(row => {
                                         const dateKey = new Date(row.time_in).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
                                         if (!grouped[dateKey]) grouped[dateKey] = []
                                         grouped[dateKey].push(row)
                                     })
                                     let sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
 
-                                    if (filterType === 'day' && filterDate) {
-                                        sortedDates = sortedDates.filter(d => d === filterDate)
-                                    } else if (filterType === 'month' && filterMonth) {
-                                        sortedDates = sortedDates.filter(d => d.startsWith(filterMonth))
-                                    }
+                                    // Local filtering is no longer strictly needed but we'll keep it simple
+                                    // since logbookData is already filtered by server.
 
                                     if (sortedDates.length === 0) {
                                         return (
