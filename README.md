@@ -8,15 +8,14 @@
 
 <br/><br/>
 
-# 🎓 OJT Track — QR-Based Intern Attendance System
+# 🎓 OJT Track — QR-Based Intern Attendance Utility
 
-### A full-stack, real-time On-the-Job Training attendance management platform  
-### for **ISUFST Dingle Campus** · **College of Information and Communications Technology**
+### A fast, lightweight QR attendance tracker & printable ID generator  
+### Created to help the **ISUFST Dingle Campus** · **College of Information and Communications Technology**
 
 <br/>
 
-> Replaces paper-based DTR with a digital, QR-powered attendance system featuring  
-> offline resilience, automated report generation, and a dual-role portal for admins and interns.
+> A practical utility built to make time tracking faster and simpler. Replaces slow paper logs with a quick QR scan interface, instant automated DTR reports, and printable QR passes for the department's interns.
 
 </div>
 
@@ -359,7 +358,7 @@ npm start
 
 ## 🤝 Contributing
 
-This project was developed for academic submission at **ISUFST Dingle Campus**. Contributions, issue reports, and suggestions are welcome for future iterations.
+This project was developed as a helpful utility for **ISUFST Dingle Campus**. Contributions, issue reports, and suggestions are welcome to make it even more useful for the department.
 
 1. Fork the repository
 2. Create your feature branch: `git checkout -b feature/your-feature`
@@ -382,9 +381,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 **Lou Vincent Baroro**  
 *BS Information Technology · ISUFST Dingle Campus*
 
-Designed and developed as a capstone-level academic project for the  
-**College of Information and Communications Technology (CICT)**  
-*Iloilo State University of Fisheries Science and Technology*
+Developed as a practical workflow tool to help the **College of Information and Communications Technology (CICT)** department streamline trainee attendance, hours tracking, and printable QR pass generation.
 
 ---
 
