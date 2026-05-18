@@ -8,7 +8,7 @@
 
 <br/><br/>
 
-# 🎓 OJT Track — QR-Based Intern Attendance Utility
+# 🎓 OJT Qr Pass — QR-Based Intern Attendance Utility
 
 ### A fast, lightweight QR attendance tracker & printable ID generator  
 ### Created to help the **ISUFST Dingle Campus** · **College of Information and Communications Technology**
