@@ -355,20 +355,6 @@ npm start
 
 ---
 
-## 💡 Suggested Repository Name
-
-Here are high-impact, professional repository name suggestions:
-
-| Name | Why It Works |
-|------|-------------|
-| **`ojt-track`** ⭐ | Clean, short, purpose-driven. Easy to remember and type. |
-| `qr-attendance-system` | Descriptive and searchable on GitHub |
-| `ojt-attendance-portal` | Formal, department-appropriate naming |
-| `intern-tracker` | Universal and transferable to other institutions |
-| `cict-ojt-system` | Department-branded for institutional repositories |
-
-> **Recommended:** `ojt-track` — professional, concise, and clearly communicates the system's purpose at a glance.
-
 ---
 
 ## 🤝 Contributing
